@@ -2,38 +2,77 @@ package storage
 
 import (
 	"context"
-	"fmt"
 	"io"
+	"log"
+	"os"
 
+	"github.com/joho/godotenv"
 	"github.com/minio/minio-go/v7"
 	"github.com/minio/minio-go/v7/pkg/credentials"
 )
 
+// MinioStorage структура для работы с MinIO
 type MinioStorage struct {
-	client *minio.Client
-	bucket string
+	Client *minio.Client
+	Bucket string
 }
 
-func NewMinioStorage(endpoint, accessKey, secretKey, bucket string, useSSL bool) (*MinioStorage, error) {
-	minioClient, err := minio.New(endpoint, &minio.Options{
-		Creds:  credentials.NewStaticV4(accessKey, secretKey, ""),
-		Secure: useSSL,
-	})
-	if err != nil {
-		return nil, fmt.Errorf("ошибка подключения к MinIO: %w", err)
+// NewMinioStorage инициализация MinIO
+func NewMinioStorage() (*MinioStorage, error) {
+	// Загружаем переменные окружения из .env
+	if err := godotenv.Load("pkg/storage/.env"); err != nil {
+		log.Println("Предупреждение: .env файл не найден, используются системные переменные окружения")
 	}
 
+	// Читаем переменные окружения
+	endpoint := os.Getenv("MINIO_ENDPOINT")
+	accessKey := os.Getenv("MINIO_ACCESS_KEY")
+	secretKey := os.Getenv("MINIO_SECRET_KEY")
+	bucket := os.Getenv("MINIO_BUCKET")
+
+	// Подключение к MinIO
+	client, err := minio.New(endpoint, &minio.Options{
+		Creds:  credentials.NewStaticV4(accessKey, secretKey, ""),
+		Secure: false,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	log.Println("Подключение к MinIO успешно!")
 	return &MinioStorage{
-		client: minioClient,
-		bucket: bucket,
+		Client: client,
+		Bucket: bucket,
 	}, nil
 }
 
-// GetFile возвращает поток данных из MinIO
-func (s *MinioStorage) GetFile(objectName string) (io.ReadCloser, error) {
-	obj, err := s.client.GetObject(context.Background(), s.bucket, objectName, minio.GetObjectOptions{})
+// GetFile загружает объект из MinIO по имени файла
+func (s *MinioStorage) GetFile(fileName string) (io.ReadCloser, error) {
+	ctx := context.Background()
+	obj, err := s.Client.GetObject(ctx, s.Bucket, fileName, minio.GetObjectOptions{})
 	if err != nil {
-		return nil, fmt.Errorf("ошибка получения файла %s: %w", objectName, err)
+		log.Printf("Ошибка при получении файла %s: %v", fileName, err)
+		return nil, err
 	}
+
+	// // Пробуем прочитать первые байты, чтобы убедиться, что файл не пустой
+	// buf := make([]byte, 512)
+	// n, err := obj.Read(buf)
+	// if err != nil && err != io.EOF {
+	// 	log.Printf("Ошибка при чтении файла %s: %v", fileName, err)
+	// 	return nil, err
+	// }
+
+	// if n == 0 {
+	// 	log.Printf("Файл %s пуст", fileName)
+	// 	return nil, errors.New("file is empty")
+	// }
+
+	// // Возвращаемся в начало файла
+	// if _, err := obj.Seek(0, io.SeekStart); err != nil {
+	// 	log.Printf("Ошибка при перемотке файла %s: %v", fileName, err)
+	// 	return nil, err
+	// }
+
 	return obj, nil
 }

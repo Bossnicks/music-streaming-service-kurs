@@ -1,11 +1,13 @@
 package music
 
 import (
+	"bytes"
 	"io"
 	"net/http"
 	"strconv"
+	"strings"
 
-	"your_project/storage"
+	"github.com/Bossnicks/music-streaming-service-kurs/pkg/storage"
 
 	"github.com/labstack/echo/v4"
 )
@@ -38,30 +40,40 @@ func (h *Handler) GetTrackInfo(c echo.Context) error {
 
 // GetPlaylist отдает m3u8 файл
 func (h *Handler) GetPlaylist(c echo.Context) error {
-	id := c.Param("id")
+	filename := c.Param("id") // Получаем имя файла
 
-	// Проверяем, существует ли трек в БД
-	track, err := h.service.GetTrack(id)
-	if err != nil {
-		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Ошибка сервера"})
+	// Если запрашивают ts-файл, сразу отдаем его из MinIO
+	if strings.HasSuffix(filename, ".ts") {
+		return h.streamFromMinIO(c, filename)
 	}
-	if track == nil {
-		return c.JSON(http.StatusNotFound, map[string]string{"error": "Трек не найден"})
+
+	// Проверяем трек в БД
+	id, err := strconv.Atoi(filename)
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "Некорректный ID"})
+	}
+
+	track, err := h.service.GetTrack(id)
+	if err != nil || track == nil {
+		return c.JSON(http.StatusNotFound, map[string]string{"error": "Трек не найден в БД"})
 	}
 
 	// Получаем m3u8 из MinIO
-	fileName := id + ".m3u8"
-	obj, err := h.storage.GetFile(fileName)
+	return h.streamFromMinIO(c, filename+".m3u8")
+}
+
+// Отдаёт файл из MinIO
+func (h *Handler) streamFromMinIO(c echo.Context, filename string) error {
+	obj, err := h.storage.GetFile(filename)
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Ошибка получения файла"})
+		return c.String(http.StatusNotFound, "Файл не найден")
 	}
 	defer obj.Close()
 
-	c.Response().Header().Set("Content-Type", "application/vnd.apple.mpegurl")
-	_, err = io.Copy(c.Response().Writer, obj)
-	if err != nil {
-		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Ошибка при передаче файла"})
+	buf := new(bytes.Buffer)
+	if _, err = io.Copy(buf, obj); err != nil {
+		return c.String(http.StatusInternalServerError, "Ошибка чтения файла")
 	}
 
-	return nil
+	return c.Blob(http.StatusOK, http.DetectContentType(buf.Bytes()), buf.Bytes())
 }

@@ -3,6 +3,7 @@ package user
 import (
 	"errors"
 
+	"github.com/Bossnicks/music-streaming-service-kurs/pkg/auth"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -40,7 +41,7 @@ func (s *Service) Authenticate(email, password string) (string, *User, error) {
 		return "", nil, errors.New("неверные учетные данные")
 	}
 
-	token, err := GenerateJWT(user.ID, user.Role)
+	token, err := auth.GenerateJWT(user.ID, user.Role)
 	if err != nil {
 		return "", nil, err
 	}

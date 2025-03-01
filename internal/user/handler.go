@@ -5,6 +5,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/Bossnicks/music-streaming-service-kurs/pkg/auth"
 	"github.com/labstack/echo/v4"
 )
 
@@ -67,7 +68,7 @@ func (h *Handler) GetUser(c echo.Context) error {
 
 	tokenString := strings.TrimPrefix(authHeader, "Bearer ")
 
-	claims, err := ParseJWT(tokenString)
+	claims, err := auth.ParseJWT(tokenString)
 	if err != nil {
 		return c.JSON(http.StatusUnauthorized, map[string]string{"error": "Неверный токен"})
 	}

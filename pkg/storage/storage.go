@@ -76,3 +76,16 @@ func (s *MinioStorage) GetFile(fileName string) (io.ReadCloser, error) {
 
 	return obj, nil
 }
+
+func (s *MinioStorage) UploadFile(objectName, filePath string) error {
+	// Открываем файл
+	file, err := os.Open(filePath)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+
+	// Загружаем файл в MinIO
+	_, err = s.Client.PutObject(context.Background(), s.Bucket, objectName, file, -1, minio.PutObjectOptions{})
+	return err
+}

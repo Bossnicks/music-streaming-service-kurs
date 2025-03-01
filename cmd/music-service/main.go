@@ -37,6 +37,9 @@ func main() {
 
 	e.GET("/songs/:id/info", handler.GetTrackInfo)
 	e.GET("/songs/:id", handler.GetTrackPlaylist) // Эндпоинт для m3u8
+	e.POST("/beatstreet/api/users/addnewplaylist", handler.AddPlaylist)
+	e.GET("/beatstreet/api/users/allplaylist", handler.GetUserPlaylists)
+	e.POST("/songs/upload", handler.UploadTrack)
 
 	log.Println("Запуск music-service на порту 11000")
 	if err := e.Start(":11000"); err != nil {

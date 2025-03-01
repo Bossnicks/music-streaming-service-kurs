@@ -39,7 +39,7 @@ func (h *Handler) GetTrackInfo(c echo.Context) error {
 }
 
 // GetPlaylist отдает m3u8 файл
-func (h *Handler) GetPlaylist(c echo.Context) error {
+func (h *Handler) GetTrackPlaylist(c echo.Context) error {
 	filename := c.Param("id") // Получаем имя файла
 
 	// Если запрашивают ts-файл, сразу отдаем его из MinIO

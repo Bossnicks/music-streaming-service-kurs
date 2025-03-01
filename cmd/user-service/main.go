@@ -3,9 +3,8 @@ package main
 import (
 	"log"
 
-	"github.com/Bossnicks/music-streaming-service-kurs/internal/music"
+	"github.com/Bossnicks/music-streaming-service-kurs/internal/user"
 	"github.com/Bossnicks/music-streaming-service-kurs/pkg/database"
-	"github.com/Bossnicks/music-streaming-service-kurs/pkg/storage"
 
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
@@ -18,12 +17,6 @@ func main() {
 		log.Fatalf("Ошибка подключения к БД: %v", err)
 	}
 
-	// Подключение к MinIO
-	minioStorage, err := storage.NewMinioStorage()
-	if err != nil {
-		log.Fatalf("Ошибка подключения к MinIO: %v", err)
-	}
-
 	e := echo.New()
 
 	e.Use(middleware.CORSWithConfig(middleware.CORSConfig{
@@ -31,15 +24,16 @@ func main() {
 		AllowMethods: []string{echo.GET, echo.POST, echo.PUT, echo.DELETE},       // Разрешенные HTTP-методы
 	}))
 
-	repo := music.NewRepository(db)
-	service := music.NewService(repo)
-	handler := music.NewHandler(service, minioStorage)
+	repo := user.NewRepository(db)
+	service := user.NewService(repo)
+	handler := user.NewHandler(service)
 
-	e.GET("/songs/:id/info", handler.GetTrackInfo)
-	e.GET("/songs/:id", handler.GetTrackPlaylist) // Эндпоинт для m3u8
+	e.POST("/beatstreet/api/users/signup", handler.Register)
+	e.POST("/beatstreet/api/users/login", handler.Login)
+	e.GET("/beatstreet/api/users/isloggedin", handler.GetUser)
 
-	log.Println("Запуск music-service на порту 11000")
-	if err := e.Start(":11000"); err != nil {
+	log.Println("Запуск user-service на порту 12000")
+	if err := e.Start(":12000"); err != nil {
 		log.Fatal(err)
 	}
 }

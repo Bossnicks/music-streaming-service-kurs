@@ -25,6 +25,13 @@ type UserComment struct {
 	Avatar   string `json:"avatar"`
 }
 
+type User struct {
+	ID         int    `json:"id"`
+	Username   string `json:"username"`
+	Avatar     string `json:"avatar"`
+	Popularity int    `json:"popularity"`
+}
+
 type Playlist struct {
 	ID     int    `json:"id"`
 	Title  string `json:"title"`

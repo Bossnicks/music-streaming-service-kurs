@@ -64,6 +64,18 @@ func (s *Service) AddComment(trackID, userID int, text string, moment int) (int,
 	return s.repo.AddComment(trackID, userID, text, moment)
 }
 
-func (s *Service) AddTrackListen(listenerID *int, trackID int, country string) (int, error) {
+func (s *Service) AddTrackListen(listenerID int, trackID int, country string) (int, error) {
 	return s.repo.AddTrackListen(listenerID, trackID, country)
+}
+
+func (s *Service) GetTrackListens(trackID int) (int, error) {
+	return s.repo.GetTrackListens(trackID)
+}
+
+func (s *Service) GetTopUsersByPopularity() ([]User, error) {
+	return s.repo.GetTopUsersByPopularity()
+}
+
+func (s *Service) GetUser(userID int) (*User, error) {
+	return s.repo.GetUserByID(userID)
 }

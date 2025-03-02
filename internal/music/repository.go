@@ -220,13 +220,87 @@ func (r *Repository) AddComment(trackID, userID int, text string, moment int) (i
 	return id, nil
 }
 
-func (r *Repository) AddTrackListen(listenerID *int, trackID int, country string) (int, error) {
+func (r *Repository) AddTrackListen(listenerID int, trackID int, country string) (int, error) {
 	var id int
 	query := `INSERT INTO track_listens (listener_id, track_id, country) 
 	          VALUES ($1, $2, $3) RETURNING id`
-	err := r.db.QueryRow(query, listenerID, trackID, country).Scan(&id)
+
+	// Если listenerID == 0, передаём nil
+	var listenerIDPtr sql.NullInt32
+	if listenerID == 0 {
+		listenerIDPtr = sql.NullInt32{Valid: false} // NULL в БД
+	} else {
+		listenerIDPtr = sql.NullInt32{Int32: int32(listenerID), Valid: true}
+	}
+
+	err := r.db.QueryRow(query, listenerIDPtr, trackID, country).Scan(&id)
 	if err != nil {
 		return 0, err
 	}
 	return id, nil
+}
+
+func (r *Repository) GetTrackListens(trackID int) (int, error) {
+	var count int
+	query := `SELECT COUNT(*) FROM track_listens WHERE track_id = $1`
+	err := r.db.QueryRow(query, trackID).Scan(&count)
+	if err != nil {
+		return 0, err
+	}
+	return count, nil
+}
+
+func (r *Repository) GetTopUsersByPopularity() ([]User, error) {
+	query := `
+		SELECT u.id, u.username, u.avatar, COALESCE(SUM(tl.listen_count), 0) AS popularity
+		FROM users u
+		LEFT JOIN tracks t ON u.id = t.author_id
+		LEFT JOIN (
+			SELECT track_id, COUNT(*) AS listen_count
+			FROM track_listens
+			GROUP BY track_id
+		) tl ON t.id = tl.track_id
+		GROUP BY u.id
+		ORDER BY popularity DESC
+		LIMIT 30;
+	`
+
+	rows, err := r.db.Query(query)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var users []User
+	for rows.Next() {
+		var user User
+		var popularity int
+		err := rows.Scan(&user.ID, &user.Username, &user.Avatar, &popularity)
+		if err != nil {
+			return nil, err
+		}
+		user.Popularity = popularity
+		users = append(users, user)
+	}
+
+	return users, nil
+}
+
+func (r *Repository) GetUserByID(userID int) (*User, error) {
+	query := `
+		SELECT id, username, avatar 
+		FROM users 
+		WHERE id = $1
+	`
+
+	var user User
+	err := r.db.QueryRow(query, userID).Scan(&user.ID, &user.Username, &user.Avatar)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, nil // Пользователь не найден
+		}
+		return nil, err
+	}
+
+	return &user, nil
 }

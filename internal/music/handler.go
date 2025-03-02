@@ -12,6 +12,7 @@ import (
 	"strings"
 
 	"github.com/Bossnicks/music-streaming-service-kurs/pkg/auth"
+	"github.com/Bossnicks/music-streaming-service-kurs/pkg/network"
 
 	"github.com/Bossnicks/music-streaming-service-kurs/pkg/storage"
 
@@ -479,20 +480,91 @@ func (h *Handler) AddTrackListen(c echo.Context) error {
 	}
 
 	var listenerID *int
-	if userID, ok := c.Get("user_id").(int); ok {
-		listenerID = &userID
+
+	authHeader := c.Request().Header.Get("Authorization")
+	if authHeader == "" {
+		listenerID = nil
+	} else {
+		tokenString := strings.TrimPrefix(authHeader, "Bearer ")
+		claims, err := auth.ParseJWT(tokenString)
+		if err != nil {
+			return c.JSON(http.StatusUnauthorized, map[string]string{"error": "Неверный токен"})
+		}
+
+		listenerID = &claims.UserID
+
 	}
 
-	ip := c.RealIP()
-	country, err := network.getCountryByIP(ip)
+	ip, err := network.GetPublicIP()
+
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to determine ip"})
+	}
+	country, err := network.GetCountryByIP(ip)
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to determine country"})
 	}
 
-	id, err := h.service.AddTrackListen(listenerID, trackID, country)
+	fmt.Println("Country detected:", country)
+
+	listenerIDValue := 0
+	if listenerID != nil {
+		listenerIDValue = *listenerID
+	}
+
+	if listenerID == nil && authHeader == "" {
+		listenerIDValue = 0
+	}
+
+	id, err := h.service.AddTrackListen(listenerIDValue, trackID, country)
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to add track listen"})
 	}
 
 	return c.JSON(http.StatusOK, map[string]int{"listen_id": id})
+}
+
+func (h *Handler) GetTrackListens(c echo.Context) error {
+	trackID, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "Invalid track ID"})
+	}
+
+	count, err := h.service.GetTrackListens(trackID)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to get track listens"})
+	}
+	return c.JSON(http.StatusOK, map[string]int{"track_listens": count})
+}
+
+func (h *Handler) GetTopUsersByPopularity(c echo.Context) error {
+	// trackID, err := strconv.Atoi(c.Param("id"))
+	// if err != nil {
+	// 	return c.JSON(http.StatusBadRequest, map[string]string{"error": "Invalid track ID"})
+	// }
+	fmt.Println("DSC")
+
+	authors, err := h.service.GetTopUsersByPopularity()
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to get track listens"})
+	}
+	return c.JSON(http.StatusOK, authors)
+}
+
+func (h *Handler) GetUserByID(c echo.Context) error {
+	id, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "Invalid user ID"})
+	}
+
+	user, err := h.service.GetUser(id)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to get user"})
+	}
+
+	if user == nil {
+		return c.JSON(http.StatusNotFound, map[string]string{"error": "User not found"})
+	}
+
+	return c.JSON(http.StatusOK, user)
 }

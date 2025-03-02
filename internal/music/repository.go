@@ -124,7 +124,6 @@ func (r *Repository) IsTrackLiked(userID, trackID int) (bool, error) {
 	return exists, nil
 }
 
-// AddLike добавляет лайк к треку и возвращает true, если лайк был добавлен
 func (r *Repository) AddRepost(userID, trackID int) (bool, error) {
 	query := "INSERT INTO reposts (user_id, track_id) VALUES ($1, $2) ON CONFLICT DO NOTHING"
 	res, err := r.db.Exec(query, userID, trackID)
@@ -132,7 +131,6 @@ func (r *Repository) AddRepost(userID, trackID int) (bool, error) {
 		return false, err
 	}
 
-	// Проверяем, была ли вставлена новая строка
 	rowsAffected, err := res.RowsAffected()
 	if err != nil {
 		return false, err
@@ -141,7 +139,6 @@ func (r *Repository) AddRepost(userID, trackID int) (bool, error) {
 	return rowsAffected > 0, nil
 }
 
-// RemoveLike удаляет лайк и возвращает true, если он был удален
 func (r *Repository) RemoveRepost(userID, trackID int) (bool, error) {
 	query := "DELETE FROM reposts WHERE user_id = $1 AND track_id = $2"
 	res, err := r.db.Exec(query, userID, trackID)
@@ -149,7 +146,6 @@ func (r *Repository) RemoveRepost(userID, trackID int) (bool, error) {
 		return false, err
 	}
 
-	// Проверяем, была ли удалена строка
 	rowsAffected, err := res.RowsAffected()
 	if err != nil {
 		return false, err
@@ -158,7 +154,6 @@ func (r *Repository) RemoveRepost(userID, trackID int) (bool, error) {
 	return rowsAffected > 0, nil
 }
 
-// GetLikeCount получает количество лайков у трека
 func (r *Repository) GetRepostCount(trackID int) (int, error) {
 	var count int
 	query := "SELECT COUNT(*) FROM reposts WHERE track_id = $1"
@@ -169,7 +164,6 @@ func (r *Repository) GetRepostCount(trackID int) (int, error) {
 	return count, nil
 }
 
-// IsTrackLiked проверяет, лайкнул ли пользователь трек
 func (r *Repository) IsTrackReposted(userID, trackID int) (bool, error) {
 	query := "SELECT EXISTS(SELECT 1 FROM reposts WHERE user_id = $1 AND track_id = $2)"
 	var exists bool
@@ -178,4 +172,50 @@ func (r *Repository) IsTrackReposted(userID, trackID int) (bool, error) {
 		return false, err
 	}
 	return exists, nil
+}
+
+func (r *Repository) GetCommentsByTrackID(trackID int) ([]Comment, error) {
+	var comments []Comment
+	query := `
+		SELECT 
+			c.id AS comment_id,
+			c.text AS comment_text,
+			c.moment AS comment_moment,
+			c.created_at AS comment_date,
+			u.id AS user_id,
+			u.username,
+			u.avatar
+		FROM comments c
+		JOIN users u ON c.user_id = u.id
+		WHERE c.track_id = $1 
+		  AND (c.is_hidden IS NULL OR c.is_hidden = false)
+		ORDER BY c.created_at ASC`
+
+	rows, err := r.db.Query(query, trackID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var comment Comment
+		err := rows.Scan(&comment.ID, &comment.Text, &comment.Moment, &comment.CreatedAt, &comment.User.ID, &comment.User.Username, &comment.User.Avatar)
+		if err != nil {
+			return nil, err
+		}
+		comments = append(comments, comment)
+	}
+
+	return comments, nil
+}
+
+func (r *Repository) AddComment(trackID, userID int, text string, moment int) (int, error) {
+	var id int
+	query := `INSERT INTO comments (track_id, user_id, text, moment) 
+	          VALUES ($1, $2, $3, $4) RETURNING id`
+	err := r.db.QueryRow(query, trackID, userID, text, moment).Scan(&id)
+	if err != nil {
+		return 0, err
+	}
+	return id, nil
 }

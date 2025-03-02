@@ -55,3 +55,11 @@ func (s *Service) GetRepostCount(trackID int) (int, error) {
 func (s *Service) IsTrackReposted(userID, trackID int) (bool, error) {
 	return s.repo.IsTrackReposted(userID, trackID)
 }
+
+func (s *Service) GetCommentsByTrackID(trackID int) ([]Comment, error) {
+	return s.repo.GetCommentsByTrackID(trackID)
+}
+
+func (s *Service) AddComment(trackID, userID int, text string, moment int) (int, error) {
+	return s.repo.AddComment(trackID, userID, text, moment)
+}

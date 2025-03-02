@@ -419,3 +419,54 @@ func (h *Handler) IsTrackReposted(c echo.Context) error {
 
 	return c.JSON(http.StatusOK, map[string]bool{"reposted": reposted})
 }
+
+func (h *Handler) GetComments(c echo.Context) error {
+	trackID, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "Invalid track ID"})
+	}
+
+	comments, err := h.service.GetCommentsByTrackID(trackID)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to fetch comments"})
+	}
+
+	return c.JSON(http.StatusOK, comments)
+}
+
+func (h *Handler) AddComment(c echo.Context) error {
+	authHeader := c.Request().Header.Get("Authorization")
+	if authHeader == "" {
+		return c.JSON(http.StatusUnauthorized, map[string]string{"error": "Токен отсутствует"})
+	}
+
+	trackID, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "Invalid track ID"})
+	}
+
+	tokenString := strings.TrimPrefix(authHeader, "Bearer ")
+	claims, err := auth.ParseJWT(tokenString)
+	if err != nil {
+		return c.JSON(http.StatusUnauthorized, map[string]string{"error": "Неверный токен"})
+	}
+
+	var req struct {
+		Text   string `json:"text"`
+		Moment int    `json:"moment"`
+	}
+
+	if err := c.Bind(&req); err != nil {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "Неверный формат запроса"})
+	}
+
+	commentID, err := h.service.AddComment(trackID, claims.UserID, req.Text, req.Moment)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Ошибка сохранения комментария"})
+	}
+
+	return c.JSON(http.StatusOK, map[string]interface{}{
+		"message":    "Комментарий добавлен",
+		"comment_id": commentID,
+	})
+}

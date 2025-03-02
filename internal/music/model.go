@@ -11,6 +11,20 @@ type Track struct {
 	Created_at  time.Time `json:"created_at"`
 }
 
+type Comment struct {
+	ID        int         `json:"id"`
+	Text      string      `json:"text"`
+	CreatedAt time.Time   `json:"created_at"`
+	Moment    int         `json:"moment"`
+	User      UserComment `json:"usercomment"`
+}
+
+type UserComment struct {
+	ID       int    `json:"id"`
+	Username string `json:"username"`
+	Avatar   string `json:"avatar"`
+}
+
 type Playlist struct {
 	ID     int    `json:"id"`
 	Title  string `json:"title"`

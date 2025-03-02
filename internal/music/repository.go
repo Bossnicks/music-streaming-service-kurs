@@ -67,3 +67,115 @@ func (r *Repository) CreateTrack(title, description string, authorID int) (int, 
 	}
 	return id, nil
 }
+
+// AddLike добавляет лайк к треку и возвращает true, если лайк был добавлен
+func (r *Repository) AddLike(userID, trackID int) (bool, error) {
+	query := "INSERT INTO likes (user_id, track_id) VALUES ($1, $2) ON CONFLICT DO NOTHING"
+	res, err := r.db.Exec(query, userID, trackID)
+	if err != nil {
+		return false, err
+	}
+
+	// Проверяем, была ли вставлена новая строка
+	rowsAffected, err := res.RowsAffected()
+	if err != nil {
+		return false, err
+	}
+
+	return rowsAffected > 0, nil
+}
+
+// RemoveLike удаляет лайк и возвращает true, если он был удален
+func (r *Repository) RemoveLike(userID, trackID int) (bool, error) {
+	query := "DELETE FROM likes WHERE user_id = $1 AND track_id = $2"
+	res, err := r.db.Exec(query, userID, trackID)
+	if err != nil {
+		return false, err
+	}
+
+	// Проверяем, была ли удалена строка
+	rowsAffected, err := res.RowsAffected()
+	if err != nil {
+		return false, err
+	}
+
+	return rowsAffected > 0, nil
+}
+
+// GetLikeCount получает количество лайков у трека
+func (r *Repository) GetLikeCount(trackID int) (int, error) {
+	var count int
+	query := "SELECT COUNT(*) FROM likes WHERE track_id = $1"
+	err := r.db.QueryRow(query, trackID).Scan(&count)
+	if err != nil {
+		return 0, err
+	}
+	return count, nil
+}
+
+// IsTrackLiked проверяет, лайкнул ли пользователь трек
+func (r *Repository) IsTrackLiked(userID, trackID int) (bool, error) {
+	query := "SELECT EXISTS(SELECT 1 FROM likes WHERE user_id = $1 AND track_id = $2)"
+	var exists bool
+	err := r.db.QueryRow(query, userID, trackID).Scan(&exists)
+	if err != nil {
+		return false, err
+	}
+	return exists, nil
+}
+
+// AddLike добавляет лайк к треку и возвращает true, если лайк был добавлен
+func (r *Repository) AddRepost(userID, trackID int) (bool, error) {
+	query := "INSERT INTO reposts (user_id, track_id) VALUES ($1, $2) ON CONFLICT DO NOTHING"
+	res, err := r.db.Exec(query, userID, trackID)
+	if err != nil {
+		return false, err
+	}
+
+	// Проверяем, была ли вставлена новая строка
+	rowsAffected, err := res.RowsAffected()
+	if err != nil {
+		return false, err
+	}
+
+	return rowsAffected > 0, nil
+}
+
+// RemoveLike удаляет лайк и возвращает true, если он был удален
+func (r *Repository) RemoveRepost(userID, trackID int) (bool, error) {
+	query := "DELETE FROM reposts WHERE user_id = $1 AND track_id = $2"
+	res, err := r.db.Exec(query, userID, trackID)
+	if err != nil {
+		return false, err
+	}
+
+	// Проверяем, была ли удалена строка
+	rowsAffected, err := res.RowsAffected()
+	if err != nil {
+		return false, err
+	}
+
+	return rowsAffected > 0, nil
+}
+
+// GetLikeCount получает количество лайков у трека
+func (r *Repository) GetRepostCount(trackID int) (int, error) {
+	var count int
+	query := "SELECT COUNT(*) FROM reposts WHERE track_id = $1"
+	err := r.db.QueryRow(query, trackID).Scan(&count)
+	if err != nil {
+		return 0, err
+	}
+	return count, nil
+}
+
+// IsTrackLiked проверяет, лайкнул ли пользователь трек
+func (r *Repository) IsTrackReposted(userID, trackID int) (bool, error) {
+	query := "SELECT EXISTS(SELECT 1 FROM reposts WHERE user_id = $1 AND track_id = $2)"
+	var exists bool
+	err := r.db.QueryRow(query, userID, trackID).Scan(&exists)
+	if err != nil {
+		return false, err
+	}
+	return exists, nil
+}

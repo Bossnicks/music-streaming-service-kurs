@@ -241,3 +241,181 @@ func (h *Handler) UploadTrack(c echo.Context) error {
 
 	return c.JSON(http.StatusOK, map[string]string{"message": "Трек загружен", "id": fmt.Sprintf("%d", trackID)})
 }
+
+func (h *Handler) AddLike(c echo.Context) error {
+	authHeader := c.Request().Header.Get("Authorization")
+	if authHeader == "" {
+		return c.JSON(http.StatusUnauthorized, map[string]string{"error": "Токен отсутствует"})
+	}
+
+	tokenString := strings.TrimPrefix(authHeader, "Bearer ")
+	claims, err := auth.ParseJWT(tokenString)
+	if err != nil {
+		return c.JSON(http.StatusUnauthorized, map[string]string{"error": "Неверный токен"})
+	}
+
+	trackID, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "Некорректный ID трека"})
+	}
+
+	liked, err := h.service.AddLike(claims.UserID, trackID)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Ошибка добавления лайка"})
+	}
+
+	return c.JSON(http.StatusOK, map[string]bool{"liked": liked})
+}
+
+func (h *Handler) RemoveLike(c echo.Context) error {
+	authHeader := c.Request().Header.Get("Authorization")
+	if authHeader == "" {
+		return c.JSON(http.StatusUnauthorized, map[string]string{"error": "Токен отсутствует"})
+	}
+
+	tokenString := strings.TrimPrefix(authHeader, "Bearer ")
+	claims, err := auth.ParseJWT(tokenString)
+	if err != nil {
+		return c.JSON(http.StatusUnauthorized, map[string]string{"error": "Неверный токен"})
+	}
+
+	trackID, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "Некорректный ID трека"})
+	}
+
+	removed, err := h.service.RemoveLike(claims.UserID, trackID)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Ошибка удаления лайка"})
+	}
+
+	return c.JSON(http.StatusOK, map[string]bool{"removed": removed})
+}
+
+func (h *Handler) GetLikeCount(c echo.Context) error {
+	trackID, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "Некорректный ID трека"})
+	}
+
+	count, err := h.service.GetLikeCount(trackID)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Ошибка получения количества лайков"})
+	}
+
+	return c.JSON(http.StatusOK, map[string]int{"likes": count})
+}
+
+func (h *Handler) IsTrackLiked(c echo.Context) error {
+	authHeader := c.Request().Header.Get("Authorization")
+	if authHeader == "" {
+		return c.JSON(http.StatusUnauthorized, map[string]string{"error": "Токен отсутствует"})
+	}
+
+	tokenString := strings.TrimPrefix(authHeader, "Bearer ")
+	claims, err := auth.ParseJWT(tokenString)
+	if err != nil {
+		return c.JSON(http.StatusUnauthorized, map[string]string{"error": "Неверный токен"})
+	}
+
+	trackID, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "Некорректный ID трека"})
+	}
+
+	liked, err := h.service.IsTrackLiked(claims.UserID, trackID)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Ошибка проверки лайка"})
+	}
+
+	return c.JSON(http.StatusOK, map[string]bool{"liked": liked})
+}
+
+func (h *Handler) AddRepost(c echo.Context) error {
+	authHeader := c.Request().Header.Get("Authorization")
+	if authHeader == "" {
+		return c.JSON(http.StatusUnauthorized, map[string]string{"error": "Токен отсутствует"})
+	}
+
+	tokenString := strings.TrimPrefix(authHeader, "Bearer ")
+	claims, err := auth.ParseJWT(tokenString)
+	if err != nil {
+		return c.JSON(http.StatusUnauthorized, map[string]string{"error": "Неверный токен"})
+	}
+
+	trackID, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "Некорректный ID трека"})
+	}
+
+	reposted, err := h.service.AddRepost(claims.UserID, trackID)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Ошибка добавления репоста"})
+	}
+
+	return c.JSON(http.StatusOK, map[string]bool{"reposted": reposted})
+}
+
+func (h *Handler) RemoveRepost(c echo.Context) error {
+	authHeader := c.Request().Header.Get("Authorization")
+	if authHeader == "" {
+		return c.JSON(http.StatusUnauthorized, map[string]string{"error": "Токен отсутствует"})
+	}
+
+	tokenString := strings.TrimPrefix(authHeader, "Bearer ")
+	claims, err := auth.ParseJWT(tokenString)
+	if err != nil {
+		return c.JSON(http.StatusUnauthorized, map[string]string{"error": "Неверный токен"})
+	}
+
+	trackID, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "Некорректный ID трека"})
+	}
+
+	removed, err := h.service.RemoveRepost(claims.UserID, trackID)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Ошибка удаления репоста"})
+	}
+
+	return c.JSON(http.StatusOK, map[string]bool{"removed": removed})
+}
+
+func (h *Handler) GetRepostCount(c echo.Context) error {
+	trackID, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "Некорректный ID трека"})
+	}
+
+	count, err := h.service.GetRepostCount(trackID)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Ошибка получения количества репостов"})
+	}
+
+	return c.JSON(http.StatusOK, map[string]int{"reposts": count})
+}
+
+func (h *Handler) IsTrackReposted(c echo.Context) error {
+	authHeader := c.Request().Header.Get("Authorization")
+	if authHeader == "" {
+		return c.JSON(http.StatusUnauthorized, map[string]string{"error": "Токен отсутствует"})
+	}
+
+	tokenString := strings.TrimPrefix(authHeader, "Bearer ")
+	claims, err := auth.ParseJWT(tokenString)
+	if err != nil {
+		return c.JSON(http.StatusUnauthorized, map[string]string{"error": "Неверный токен"})
+	}
+
+	trackID, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "Некорректный ID трека"})
+	}
+
+	reposted, err := h.service.IsTrackReposted(claims.UserID, trackID)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Ошибка проверки репоста"})
+	}
+
+	return c.JSON(http.StatusOK, map[string]bool{"reposted": reposted})
+}

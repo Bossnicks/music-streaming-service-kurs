@@ -40,6 +40,14 @@ func main() {
 	e.POST("/beatstreet/api/users/addnewplaylist", handler.AddPlaylist)
 	e.GET("/beatstreet/api/users/allplaylist", handler.GetUserPlaylists)
 	e.POST("/songs/upload", handler.UploadTrack)
+	e.POST("/songs/:id/likes", handler.AddLike)
+	e.DELETE("/songs/:id/likes", handler.RemoveLike)
+	e.GET("/songs/:id/likes", handler.GetLikeCount)
+	e.GET("/songs/:id/isLiked", handler.IsTrackLiked)
+	e.POST("/songs/:id/reposts", handler.AddRepost)
+	e.DELETE("/songs/:id/reposts", handler.RemoveRepost)
+	e.GET("/songs/:id/reposts", handler.GetRepostCount)
+	e.GET("/songs/:id/isReposted", handler.IsTrackReposted)
 
 	log.Println("Запуск music-service на порту 11000")
 	if err := e.Start(":11000"); err != nil {

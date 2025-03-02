@@ -63,3 +63,7 @@ func (s *Service) GetCommentsByTrackID(trackID int) ([]Comment, error) {
 func (s *Service) AddComment(trackID, userID int, text string, moment int) (int, error) {
 	return s.repo.AddComment(trackID, userID, text, moment)
 }
+
+func (s *Service) AddTrackListen(listenerID *int, trackID int, country string) (int, error) {
+	return s.repo.AddTrackListen(listenerID, trackID, country)
+}

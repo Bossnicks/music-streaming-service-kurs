@@ -219,3 +219,14 @@ func (r *Repository) AddComment(trackID, userID int, text string, moment int) (i
 	}
 	return id, nil
 }
+
+func (r *Repository) AddTrackListen(listenerID *int, trackID int, country string) (int, error) {
+	var id int
+	query := `INSERT INTO track_listens (listener_id, track_id, country) 
+	          VALUES ($1, $2, $3) RETURNING id`
+	err := r.db.QueryRow(query, listenerID, trackID, country).Scan(&id)
+	if err != nil {
+		return 0, err
+	}
+	return id, nil
+}

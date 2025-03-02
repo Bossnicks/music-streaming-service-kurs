@@ -12,6 +12,7 @@ import (
 	"strings"
 
 	"github.com/Bossnicks/music-streaming-service-kurs/pkg/auth"
+
 	"github.com/Bossnicks/music-streaming-service-kurs/pkg/storage"
 
 	"github.com/labstack/echo/v4"
@@ -469,4 +470,29 @@ func (h *Handler) AddComment(c echo.Context) error {
 		"message":    "Комментарий добавлен",
 		"comment_id": commentID,
 	})
+}
+
+func (h *Handler) AddTrackListen(c echo.Context) error {
+	trackID, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "Invalid track ID"})
+	}
+
+	var listenerID *int
+	if userID, ok := c.Get("user_id").(int); ok {
+		listenerID = &userID
+	}
+
+	ip := c.RealIP()
+	country, err := network.getCountryByIP(ip)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to determine country"})
+	}
+
+	id, err := h.service.AddTrackListen(listenerID, trackID, country)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to add track listen"})
+	}
+
+	return c.JSON(http.StatusOK, map[string]int{"listen_id": id})
 }

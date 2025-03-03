@@ -568,3 +568,26 @@ func (h *Handler) GetUserByID(c echo.Context) error {
 
 	return c.JSON(http.StatusOK, user)
 }
+
+func (h *Handler) GetArtistTracks(c echo.Context) error {
+	artistID, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "Invalid artist ID"})
+	}
+
+	page, err := strconv.Atoi(c.QueryParam("page"))
+	if err != nil || page < 1 {
+		page = 1
+	}
+
+	songs, err := h.service.GetArtistTracks(artistID, page)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to fetch songs"})
+	}
+
+	if len(songs) == 0 {
+		return c.JSON(http.StatusNotFound, map[string]string{"error": "No songs found"})
+	}
+
+	return c.JSON(http.StatusOK, songs)
+}

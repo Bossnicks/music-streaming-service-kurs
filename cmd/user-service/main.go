@@ -31,6 +31,11 @@ func main() {
 	e.POST("/beatstreet/api/users/signup", handler.Register)
 	e.POST("/beatstreet/api/users/login", handler.Login)
 	e.GET("/beatstreet/api/users/isloggedin", handler.GetUser)
+	e.POST("/beatstreet/api/users/follow/:id", handler.FollowUser)
+	e.DELETE("/beatstreet/api/users/unfollow/:id", handler.UnfollowUser)
+	e.GET("/beatstreet/api/users/followers/:id", handler.GetFollowers)
+	e.GET("/beatstreet/api/users/following/:id", handler.GetFollowing)
+	e.GET("/users/:id/isSubscribed", handler.IsUserSubscribed)
 
 	log.Println("Запуск user-service на порту 12000")
 	if err := e.Start(":12000"); err != nil {

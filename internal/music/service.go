@@ -79,3 +79,7 @@ func (s *Service) GetTopUsersByPopularity() ([]User, error) {
 func (s *Service) GetUser(userID int) (*User, error) {
 	return s.repo.GetUserByID(userID)
 }
+
+func (s *Service) GetArtistTracks(artistID, page int) ([]Track, error) {
+	return s.repo.GetArtistTracks(artistID, page)
+}

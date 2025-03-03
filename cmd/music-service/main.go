@@ -54,6 +54,7 @@ func main() {
 	e.GET("/songs/:id/listens", handler.GetTrackListens)
 	e.GET("/artists/top", handler.GetTopUsersByPopularity)
 	e.GET("/artists/:id", handler.GetUserByID)
+	e.GET("/artists/:id/tracks", handler.GetArtistTracks)
 
 	log.Println("Запуск music-service на порту 11000")
 	if err := e.Start(":11000"); err != nil {

@@ -82,3 +82,26 @@ func (s *Service) UpdateUser(userID int, req UpdateUserRequest) error {
 func (s *Service) GetAvatar(userID int) ([]byte, error) {
 	return s.repo.GetAvatar(userID)
 }
+
+func (s *Service) FollowUser(userID, followingUserID int) error {
+	if userID == followingUserID {
+		return errors.New("you cannot follow yourself")
+	}
+	return s.repo.FollowUser(userID, followingUserID)
+}
+
+func (s *Service) UnfollowUser(userID, followingUserID int) error {
+	return s.repo.UnfollowUser(userID, followingUserID)
+}
+
+func (s *Service) GetFollowers(userID int) ([]int, error) {
+	return s.repo.GetFollowers(userID)
+}
+
+func (s *Service) GetFollowing(userID int) ([]int, error) {
+	return s.repo.GetFollowing(userID)
+}
+
+func (s *Service) IsUserSubscribed(userID, targetID int) (bool, error) {
+	return s.repo.IsUserSubscribed(userID, targetID)
+}

@@ -64,3 +64,63 @@ func (r *Repository) GetAvatar(userID int) ([]byte, error) {
 	}
 	return avatar, err
 }
+
+func (r *Repository) FollowUser(userID, followingUserID int) error {
+	_, err := r.db.Exec("INSERT INTO follows (following_user_id, followed_user_id) VALUES ($1, $2)", userID, followingUserID)
+	return err
+}
+
+func (r *Repository) UnfollowUser(userID, followingUserID int) error {
+	_, err := r.db.Exec("DELETE FROM follows WHERE following_user_id = $1 AND followed_user_id = $2", userID, followingUserID)
+	return err
+}
+
+func (r *Repository) GetFollowers(userID int) ([]int, error) {
+	rows, err := r.db.Query("SELECT following_user_id FROM follows WHERE followed_user_id = $1", userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var followers []int
+	for rows.Next() {
+		var followerID int
+		if err := rows.Scan(&followerID); err != nil {
+			return nil, err
+		}
+		followers = append(followers, followerID)
+	}
+
+	return followers, nil
+}
+
+func (r *Repository) GetFollowing(userID int) ([]int, error) {
+	rows, err := r.db.Query("SELECT followed_user_id FROM follows WHERE following_user_id = $1", userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var following []int
+	for rows.Next() {
+		var followingID int
+		if err := rows.Scan(&followingID); err != nil {
+			return nil, err
+		}
+		following = append(following, followingID)
+	}
+
+	return following, nil
+}
+
+func (r *Repository) IsUserSubscribed(userID, targetID int) (bool, error) {
+	var exists bool
+	query := `SELECT EXISTS (
+		SELECT 1 FROM follows WHERE following_user_id = $1 AND followed_user_id = $2
+	)`
+	err := r.db.QueryRow(query, userID, targetID).Scan(&exists)
+	if err != nil {
+		return false, err
+	}
+	return exists, nil
+}

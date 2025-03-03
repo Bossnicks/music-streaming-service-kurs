@@ -26,8 +26,8 @@ func (r *Repository) AddPlaylist(title string, avatar string, userID int) (int, 
 
 func (r *Repository) GetTrackByID(id int) (*Track, error) {
 	var track Track
-	query := "SELECT id, author_id, title, description, duration, created_at FROM tracks WHERE id = $1"
-	err := r.db.QueryRow(query, id).Scan(&track.ID, &track.Artist, &track.Title, &track.Description, &track.Duration, &track.Created_at)
+	query := "SELECT id, author_id, title, avatar, description, duration, created_at FROM tracks WHERE id = $1"
+	err := r.db.QueryRow(query, id).Scan(&track.ID, &track.Artist, &track.Title, &track.Avatar, &track.Description, &track.Duration, &track.Created_at)
 	fmt.Println()
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -303,4 +303,35 @@ func (r *Repository) GetUserByID(userID int) (*User, error) {
 	}
 
 	return &user, nil
+}
+
+func (r *Repository) GetArtistTracks(artistID, page int) ([]Track, error) {
+	const pageSize = 10
+	offset := (page - 1) * pageSize
+
+	query := `
+		SELECT id, author_id, title, description, duration, created_at
+		FROM tracks
+		WHERE author_id = $1
+		ORDER BY created_at DESC
+		LIMIT $2 OFFSET $3;
+	`
+
+	rows, err := r.db.Query(query, artistID, pageSize, offset)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var tracks []Track
+	for rows.Next() {
+		var track Track
+		err := rows.Scan(&track.ID, &track.Artist, &track.Title, &track.Description, &track.Duration, &track.Created_at)
+		if err != nil {
+			return nil, err
+		}
+		tracks = append(tracks, track)
+	}
+
+	return tracks, nil
 }

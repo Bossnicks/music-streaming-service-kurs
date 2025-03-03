@@ -56,8 +56,8 @@ func (s *Service) IsTrackReposted(userID, trackID int) (bool, error) {
 	return s.repo.IsTrackReposted(userID, trackID)
 }
 
-func (s *Service) GetCommentsByTrackID(trackID int) ([]Comment, error) {
-	return s.repo.GetCommentsByTrackID(trackID)
+func (s *Service) GetCommentsByTrackID(trackID int, isAdmin bool) ([]Comment, error) {
+	return s.repo.GetCommentsByTrackID(trackID, isAdmin)
 }
 
 func (s *Service) AddComment(trackID, userID int, text string, moment int) (int, error) {

@@ -423,12 +423,24 @@ func (h *Handler) IsTrackReposted(c echo.Context) error {
 }
 
 func (h *Handler) GetComments(c echo.Context) error {
+	authHeader := c.Request().Header.Get("Authorization")
+	isAdmin := false
+
+	if authHeader != "" {
+		tokenString := strings.TrimPrefix(authHeader, "Bearer ")
+		claims, err := auth.ParseJWT(tokenString)
+		if err == nil && claims.Role == "admin" {
+			isAdmin = true
+		}
+	}
+
 	trackID, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
 		return c.JSON(http.StatusBadRequest, map[string]string{"error": "Invalid track ID"})
 	}
 
-	comments, err := h.service.GetCommentsByTrackID(trackID)
+	comments, err := h.service.GetCommentsByTrackID(trackID, isAdmin)
+
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to fetch comments"})
 	}

@@ -26,8 +26,8 @@ func (r *Repository) AddPlaylist(title string, avatar string, userID int) (int, 
 
 func (r *Repository) GetTrackByID(id int) (*Track, error) {
 	var track Track
-	query := "SELECT id, author_id, title, avatar, description, duration, created_at FROM tracks WHERE id = $1"
-	err := r.db.QueryRow(query, id).Scan(&track.ID, &track.Artist, &track.Title, &track.Avatar, &track.Description, &track.Duration, &track.Created_at)
+	query := "SELECT id, author_id, title, description, duration, created_at FROM tracks WHERE id = $1"
+	err := r.db.QueryRow(query, id).Scan(&track.ID, &track.Artist, &track.Title, &track.Description, &track.Duration, &track.Created_at)
 	fmt.Println()
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -174,7 +174,7 @@ func (r *Repository) IsTrackReposted(userID, trackID int) (bool, error) {
 	return exists, nil
 }
 
-func (r *Repository) GetCommentsByTrackID(trackID int) ([]Comment, error) {
+func (r *Repository) GetCommentsByTrackID(trackID int, isAdmin bool) ([]Comment, error) {
 	var comments []Comment
 	query := `
 		SELECT 
@@ -187,9 +187,13 @@ func (r *Repository) GetCommentsByTrackID(trackID int) ([]Comment, error) {
 			u.avatar
 		FROM comments c
 		JOIN users u ON c.user_id = u.id
-		WHERE c.track_id = $1 
-		  AND (c.is_hidden IS NULL OR c.is_hidden = false)
-		ORDER BY c.created_at ASC`
+		WHERE c.track_id = $1`
+
+	if !isAdmin {
+		query += " AND c.is_hidden = false"
+	}
+
+	query += " ORDER BY c.created_at ASC"
 
 	rows, err := r.db.Query(query, trackID)
 	if err != nil {

@@ -23,8 +23,8 @@ func (r *Repository) CreateUser(user *User) error {
 
 func (r *Repository) GetUserByEmail(email string) (*User, error) {
 	var user User
-	query := "SELECT id, username, email, password, avatar, role, created_at FROM users WHERE email = $1"
-	err := r.db.QueryRow(query, email).Scan(&user.ID, &user.Username, &user.Email, &user.Password, &user.Avatar, &user.Role, &user.CreatedAt)
+	query := "SELECT id, username, email, password, avatar, role, created_at, can_comment FROM users WHERE email = $1"
+	err := r.db.QueryRow(query, email).Scan(&user.ID, &user.Username, &user.Email, &user.Password, &user.Avatar, &user.Role, &user.CreatedAt, &user.CanComment)
 	if err == sql.ErrNoRows {
 		return nil, errors.New("пользователь не найден")
 	}
@@ -34,8 +34,8 @@ func (r *Repository) GetUserByEmail(email string) (*User, error) {
 func (r *Repository) GetUserByID(userID int) (*User, error) {
 	fmt.Println(userID)
 	var user User
-	query := "SELECT id, username, email, password, avatar, role, created_at, token FROM users WHERE id = $1"
-	err := r.db.QueryRow(query, userID).Scan(&user.ID, &user.Username, &user.Email, &user.Password, &user.Avatar, &user.Role, &user.CreatedAt, &user.Token)
+	query := "SELECT id, username, email, password, avatar, role, created_at, token, can_comment FROM users WHERE id = $1"
+	err := r.db.QueryRow(query, userID).Scan(&user.ID, &user.Username, &user.Email, &user.Password, &user.Avatar, &user.Role, &user.CreatedAt, &user.Token, &user.CanComment)
 	fmt.Println(err)
 	if err == sql.ErrNoRows {
 		return nil, errors.New("пользователь не найден")
@@ -123,4 +123,26 @@ func (r *Repository) IsUserSubscribed(userID, targetID int) (bool, error) {
 		return false, err
 	}
 	return exists, nil
+}
+
+// Блокировка комментариев пользователя
+func (r *Repository) BlockComments(userID int) error {
+	_, err := r.db.Exec("UPDATE users SET can_comment = FALSE WHERE id = $1", userID)
+	return err
+}
+
+// Разблокировка комментариев пользователя
+func (r *Repository) UnblockComments(userID int) error {
+	_, err := r.db.Exec("UPDATE users SET can_comment = TRUE WHERE id = $1", userID)
+	return err
+}
+
+func (r *Repository) IsCommentAbilityBlocked(userID int) (bool, error) {
+	var canComment bool
+	query := `SELECT can_comment FROM users WHERE id = $1`
+	err := r.db.QueryRow(query, userID).Scan(&canComment)
+	if err != nil {
+		return false, err
+	}
+	return !canComment, nil
 }

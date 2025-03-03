@@ -36,6 +36,9 @@ func main() {
 	e.GET("/beatstreet/api/users/followers/:id", handler.GetFollowers)
 	e.GET("/beatstreet/api/users/following/:id", handler.GetFollowing)
 	e.GET("/users/:id/isSubscribed", handler.IsUserSubscribed)
+	e.PUT("/users/:id/blockcomments", handler.BlockComments)
+	e.PUT("/users/:id/unblockcomments", handler.UnblockComments)
+	e.GET("/users/:id/isCommentBlocked", handler.IsCommentAbilityBlocked)
 
 	log.Println("Запуск user-service на порту 12000")
 	if err := e.Start(":12000"); err != nil {

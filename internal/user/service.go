@@ -105,3 +105,15 @@ func (s *Service) GetFollowing(userID int) ([]int, error) {
 func (s *Service) IsUserSubscribed(userID, targetID int) (bool, error) {
 	return s.repo.IsUserSubscribed(userID, targetID)
 }
+
+func (s *Service) BlockComments(userID int) error {
+	return s.repo.BlockComments(userID)
+}
+
+func (s *Service) UnblockComments(userID int) error {
+	return s.repo.UnblockComments(userID)
+}
+
+func (s *Service) IsCommentAbilityBlocked(userID int) (bool, error) {
+	return s.repo.IsCommentAbilityBlocked(userID)
+}

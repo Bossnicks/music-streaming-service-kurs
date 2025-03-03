@@ -1,6 +1,7 @@
 package user
 
 import (
+	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
@@ -220,4 +221,117 @@ func (h *Handler) IsUserSubscribed(c echo.Context) error {
 	}
 
 	return c.JSON(http.StatusOK, map[string]bool{"subscribed": subscribed})
+}
+
+func (h *Handler) BlockComments(c echo.Context) error {
+	authHeader := c.Request().Header.Get("Authorization")
+	if authHeader == "" {
+		return c.JSON(http.StatusUnauthorized, map[string]string{"error": "Токен отсутствует"})
+	}
+
+	tokenString := strings.TrimPrefix(authHeader, "Bearer ")
+	claims, err := auth.ParseJWT(tokenString)
+	if err != nil {
+		return c.JSON(http.StatusUnauthorized, map[string]string{"error": "Неверный токен"})
+	}
+
+	if claims.Role == "user" {
+		return c.JSON(http.StatusUnauthorized, map[string]string{"error": "Недостаточно прав"})
+	}
+
+	fmt.Println(claims.Role)
+
+	userID, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "invalid user ID"})
+	}
+
+	user, err := h.service.GetUser(userID)
+
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "invalid user ID"})
+	}
+
+	fmt.Println(user.Role)
+
+	if user.Role == "admin" {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "Недостаточно прав"})
+	}
+
+	err = h.service.BlockComments(userID)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "failed to block comments"})
+	}
+
+	return c.JSON(http.StatusOK, map[string]string{"message": "comments blocked"})
+}
+
+func (h *Handler) UnblockComments(c echo.Context) error {
+	authHeader := c.Request().Header.Get("Authorization")
+	if authHeader == "" {
+		return c.JSON(http.StatusUnauthorized, map[string]string{"error": "Токен отсутствует"})
+	}
+
+	tokenString := strings.TrimPrefix(authHeader, "Bearer ")
+	claims, err := auth.ParseJWT(tokenString)
+	if err != nil {
+		return c.JSON(http.StatusUnauthorized, map[string]string{"error": "Неверный токен"})
+	}
+
+	if claims.Role == "user" {
+		return c.JSON(http.StatusUnauthorized, map[string]string{"error": "Недостаточно прав"})
+	}
+
+	userID, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "invalid user ID"})
+	}
+
+	err = h.service.UnblockComments(userID)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "failed to unblock comments"})
+	}
+
+	return c.JSON(http.StatusOK, map[string]string{"message": "comments unblocked"})
+}
+
+func (h *Handler) IsCommentAbilityBlocked(c echo.Context) error {
+	authHeader := c.Request().Header.Get("Authorization")
+	if authHeader == "" {
+		return c.JSON(http.StatusUnauthorized, map[string]string{"error": "Токен отсутствует"})
+	}
+
+	tokenString := strings.TrimPrefix(authHeader, "Bearer ")
+	claims, err := auth.ParseJWT(tokenString)
+	if err != nil {
+		return c.JSON(http.StatusUnauthorized, map[string]string{"error": "Неверный токен"})
+	}
+
+	if claims.Role == "user" {
+		return c.JSON(http.StatusUnauthorized, map[string]string{"error": "Недостаточно прав"})
+	}
+
+	userID, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "Invalid user ID"})
+	}
+
+	user, err := h.service.GetUser(userID)
+
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "invalid user ID"})
+	}
+
+	fmt.Println(user.Role)
+
+	if user.Role == "admin" {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "Недостаточно прав"})
+	}
+
+	commentBlocked, err := h.service.IsCommentAbilityBlocked(userID)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Internal server error"})
+	}
+
+	return c.JSON(http.StatusOK, map[string]bool{"commentBlocked": commentBlocked})
 }

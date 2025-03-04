@@ -10,6 +10,8 @@ type Track struct {
 	Description string    `json:"description"`
 	Duration    int       `json:"duration"`
 	Created_at  time.Time `json:"created_at"`
+	Updated_at  time.Time `json:"updated_at"`
+	Author      User      `json:"author"`
 }
 
 type Comment struct {
@@ -17,6 +19,7 @@ type Comment struct {
 	Text      string      `json:"text"`
 	CreatedAt time.Time   `json:"created_at"`
 	Moment    int         `json:"moment"`
+	IsHidden  bool        `json:"is_hidden"`
 	User      UserComment `json:"usercomment"`
 }
 
@@ -34,7 +37,12 @@ type User struct {
 }
 
 type Playlist struct {
-	ID     int    `json:"id"`
-	Title  string `json:"title"`
-	Avatar string `json:"avatar"`
+	ID          int       `json:"id"`
+	Title       string    `json:"title"`
+	Description string    `json:"description"`
+	Avatar      string    `json:"avatar"`
+	CreatedAt   time.Time `json:"created_at"`
+	UpdatedAt   time.Time `json:"updated_at"`
+	Author      User      `json:"author"`
+	Tracks      []Track   `json:"tracks"`
 }

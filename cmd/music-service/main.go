@@ -50,11 +50,14 @@ func main() {
 	e.GET("/songs/:id/isReposted", handler.IsTrackReposted)
 	e.GET("/songs/:id/comments", handler.GetComments)
 	e.POST("/songs/:id/comments", handler.AddComment)
+	e.PUT("/songs/:id/commenthide", handler.HideComment)
+	e.PUT("/songs/:id/commentunhide", handler.UnhideComment)
 	e.POST("/songs/:id/listens", handler.AddTrackListen)
 	e.GET("/songs/:id/listens", handler.GetTrackListens)
 	e.GET("/artists/top", handler.GetTopUsersByPopularity)
 	e.GET("/artists/:id", handler.GetUserByID)
 	e.GET("/artists/:id/tracks", handler.GetArtistTracks)
+	e.GET("/playlists/:id", handler.GetPlaylist)
 
 	log.Println("Запуск music-service на порту 11000")
 	if err := e.Start(":11000"); err != nil {

@@ -603,3 +603,63 @@ func (h *Handler) GetArtistTracks(c echo.Context) error {
 
 	return c.JSON(http.StatusOK, songs)
 }
+
+func (h *Handler) HideComment(c echo.Context) error {
+	authHeader := c.Request().Header.Get("Authorization")
+
+	if authHeader != "" {
+		tokenString := strings.TrimPrefix(authHeader, "Bearer ")
+		claims, err := auth.ParseJWT(tokenString)
+		if err != nil || claims.Role != "admin" {
+			return c.JSON(http.StatusForbidden, map[string]string{"error": "Недостаточно прав"})
+		}
+	}
+	commentID, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "Invalid comment ID"})
+	}
+
+	err = h.service.HideComment(commentID)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to hide comment"})
+	}
+
+	return c.JSON(http.StatusOK, map[string]string{"message": "Comment hidden"})
+}
+
+func (h *Handler) UnhideComment(c echo.Context) error {
+	authHeader := c.Request().Header.Get("Authorization")
+
+	if authHeader != "" {
+		tokenString := strings.TrimPrefix(authHeader, "Bearer ")
+		claims, err := auth.ParseJWT(tokenString)
+		if err != nil || claims.Role != "admin" {
+			return c.JSON(http.StatusForbidden, map[string]string{"error": "Недостаточно прав"})
+		}
+	}
+	commentID, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "Invalid comment ID"})
+	}
+
+	err = h.service.UnhideComment(commentID)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to unhide comment"})
+	}
+
+	return c.JSON(http.StatusOK, map[string]string{"message": "Comment unhidden"})
+}
+
+func (h *Handler) GetPlaylist(c echo.Context) error {
+	playlistID, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "Invalid playlist ID"})
+	}
+
+	playlist, err := h.service.GetPlaylistByID(playlistID)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to fetch playlist"})
+	}
+
+	return c.JSON(http.StatusOK, playlist)
+}

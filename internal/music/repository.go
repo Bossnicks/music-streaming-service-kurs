@@ -39,7 +39,7 @@ func (r *Repository) GetTrackByID(id int) (*Track, error) {
 }
 
 func (r *Repository) GetUserPlaylists(userID int) ([]Playlist, error) {
-	query := "SELECT id, title, avatar FROM playlists WHERE author_id = $1"
+	query := "SELECT id, title FROM playlists WHERE author_id = $1"
 	rows, err := r.db.Query(query, userID)
 	if err != nil {
 		return nil, err
@@ -49,7 +49,7 @@ func (r *Repository) GetUserPlaylists(userID int) ([]Playlist, error) {
 	var playlists []Playlist
 	for rows.Next() {
 		var p Playlist
-		if err := rows.Scan(&p.ID, &p.Title, &p.Avatar); err != nil {
+		if err := rows.Scan(&p.ID, &p.Title); err != nil {
 			return nil, err
 		}
 		playlists = append(playlists, p)
@@ -182,6 +182,7 @@ func (r *Repository) GetCommentsByTrackID(trackID int, isAdmin bool) ([]Comment,
 			c.text AS comment_text,
 			c.moment AS comment_moment,
 			c.created_at AS comment_date,
+			c.is_hidden,
 			u.id AS user_id,
 			u.username,
 			u.avatar
@@ -203,7 +204,7 @@ func (r *Repository) GetCommentsByTrackID(trackID int, isAdmin bool) ([]Comment,
 
 	for rows.Next() {
 		var comment Comment
-		err := rows.Scan(&comment.ID, &comment.Text, &comment.Moment, &comment.CreatedAt, &comment.User.ID, &comment.User.Username, &comment.User.Avatar)
+		err := rows.Scan(&comment.ID, &comment.Text, &comment.Moment, &comment.CreatedAt, &comment.IsHidden, &comment.User.ID, &comment.User.Username, &comment.User.Avatar)
 		if err != nil {
 			return nil, err
 		}
@@ -338,4 +339,93 @@ func (r *Repository) GetArtistTracks(artistID, page int) ([]Track, error) {
 	}
 
 	return tracks, nil
+}
+
+func (r *Repository) HideComment(commentID int) error {
+	_, err := r.db.Exec("UPDATE comments SET is_hidden = TRUE WHERE id = $1", commentID)
+	return err
+}
+
+func (r *Repository) UnhideComment(commentID int) error {
+	_, err := r.db.Exec("UPDATE comments SET is_hidden = FALSE WHERE id = $1", commentID)
+	return err
+}
+
+//p.avatar AS playlist_avatar,
+//			u.avatar AS author_avatar,
+//			t.avatar AS track_avatar,
+//			t.updated_at AS track_updated_at,
+
+func (r *Repository) GetPlaylistByID(playlistID int) (*Playlist, error) {
+	query := `
+		SELECT 
+			p.id AS playlist_id,
+			p.title AS playlist_title,
+			p.description AS playlist_description,
+			p.created_at AS playlist_created_at,
+			p.updated_at AS playlist_updated_at,
+			u.id AS author_id,
+			u.username AS author_username,
+			t.id AS track_id,
+			t.title AS track_title,
+			t.description AS track_description,
+			t.duration AS track_duration,
+			t.created_at AS track_created_at,
+			u2.id AS track_author_id,
+			u2.username AS track_author_username
+		FROM playlists p
+		JOIN users u ON p.author_id = u.id
+		LEFT JOIN tracks_playlists tp ON p.id = tp.playlist_id
+		LEFT JOIN tracks t ON tp.track_id = t.id
+		LEFT JOIN users u2 ON t.author_id = u2.id
+		WHERE p.id = $1`
+
+	rows, err := r.db.Query(query, playlistID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var playlist Playlist
+	var tracks []Track
+
+	for rows.Next() {
+		var track Track
+		var trackAuthor User
+
+		err := rows.Scan(
+			&playlist.ID,
+			&playlist.Title,
+			&playlist.Description,
+			//&playlist.Avatar,
+			&playlist.CreatedAt,
+			&playlist.UpdatedAt,
+			&playlist.Author.ID,
+			&playlist.Author.Username,
+			//&playlist.Author.Avatar,
+			&track.ID,
+			&track.Title,
+			&track.Description,
+			//&track.Avatar,
+			&track.Duration,
+			&track.Created_at,
+			//&track.Updated_at,
+			&trackAuthor.ID,
+			&trackAuthor.Username,
+		)
+		if err != nil {
+			fmt.Println(err)
+			return nil, err
+		}
+
+		//playlist.Avatar = nil
+		//playlist.Author.Avatar = nil
+		//track.Avatar = nil
+
+		track.Author = trackAuthor
+		tracks = append(tracks, track)
+	}
+
+	playlist.Tracks = tracks
+	return &playlist, nil
 }

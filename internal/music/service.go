@@ -83,3 +83,15 @@ func (s *Service) GetUser(userID int) (*User, error) {
 func (s *Service) GetArtistTracks(artistID, page int) ([]Track, error) {
 	return s.repo.GetArtistTracks(artistID, page)
 }
+
+func (s *Service) HideComment(commentID int) error {
+	return s.repo.HideComment(commentID)
+}
+
+func (s *Service) UnhideComment(commentID int) error {
+	return s.repo.UnhideComment(commentID)
+}
+
+func (s *Service) GetPlaylistByID(playlistID int) (*Playlist, error) {
+	return s.repo.GetPlaylistByID(playlistID)
+}

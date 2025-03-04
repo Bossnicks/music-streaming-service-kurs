@@ -146,3 +146,50 @@ func (r *Repository) IsCommentAbilityBlocked(userID int) (bool, error) {
 	}
 	return !canComment, nil
 }
+
+func (r *Repository) GetUserFeed(userID int) ([]FeedItem, error) {
+	query := `
+		(
+			SELECT r.id, r.user_id, u.username, 'repost' AS type, r.track_id AS target_id, t.title AS target_name, r.created_at
+			FROM reposts r
+			JOIN users u ON r.user_id = u.id
+			JOIN tracks t ON r.track_id = t.id
+			JOIN follows f ON r.user_id = f.followed_user_id
+			WHERE f.following_user_id = $1
+		)
+		UNION ALL
+		(
+			SELECT t.id, t.author_id, u.username, 'upload' AS type, t.id AS target_id, t.title AS target_name, t.created_at
+			FROM tracks t
+			JOIN users u ON t.author_id = u.id
+			JOIN follows f ON t.author_id = f.followed_user_id
+			WHERE f.following_user_id = $1
+		)
+		UNION ALL
+		(
+			SELECT p.id, p.author_id, u.username, 'playlist' AS type, p.id AS target_id, p.title AS target_name, p.created_at
+			FROM playlists p
+			JOIN users u ON p.author_id = u.id
+			JOIN follows f ON p.author_id = f.followed_user_id
+			WHERE f.following_user_id = $1
+		)
+		ORDER BY created_at DESC
+		LIMIT 50
+	`
+
+	rows, err := r.db.Query(query, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var feed []FeedItem
+	for rows.Next() {
+		var item FeedItem
+		if err := rows.Scan(&item.ID, &item.UserID, &item.UserName, &item.Type, &item.TargetID, &item.TargetName, &item.CreatedAt); err != nil {
+			return nil, err
+		}
+		feed = append(feed, item)
+	}
+	return feed, nil
+}

@@ -33,3 +33,13 @@ type UpdateUserRequest struct {
 	Password *string `json:"password"`
 	Avatar   *[]byte `json:"avatar"`
 }
+
+type FeedItem struct {
+	ID         int       `json:"id"`
+	UserID     int       `json:"user_id"`
+	UserName   string    `json:"user_name"`
+	Type       string    `json:"type"` // "repost", "upload", "playlist"
+	TargetID   int       `json:"target_id"`
+	TargetName string    `json:"target_name"`
+	CreatedAt  time.Time `json:"created_at"`
+}

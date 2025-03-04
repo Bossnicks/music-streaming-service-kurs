@@ -335,3 +335,23 @@ func (h *Handler) IsCommentAbilityBlocked(c echo.Context) error {
 
 	return c.JSON(http.StatusOK, map[string]bool{"commentBlocked": commentBlocked})
 }
+
+func (h *Handler) GetUserFeed(c echo.Context) error {
+	authHeader := c.Request().Header.Get("Authorization")
+	if authHeader == "" {
+		return c.JSON(http.StatusUnauthorized, map[string]string{"error": "Токен отсутствует"})
+	}
+
+	tokenString := strings.TrimPrefix(authHeader, "Bearer ")
+	claims, err := auth.ParseJWT(tokenString)
+	if err != nil {
+		return c.JSON(http.StatusUnauthorized, map[string]string{"error": "Неверный токен"})
+	}
+
+	feed, err := h.service.GetUserFeed(claims.UserID)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Не удалось получить ленту"})
+	}
+
+	return c.JSON(http.StatusOK, feed)
+}

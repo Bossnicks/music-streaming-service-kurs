@@ -117,3 +117,7 @@ func (s *Service) UnblockComments(userID int) error {
 func (s *Service) IsCommentAbilityBlocked(userID int) (bool, error) {
 	return s.repo.IsCommentAbilityBlocked(userID)
 }
+
+func (s *Service) GetUserFeed(userID int) ([]FeedItem, error) {
+	return s.repo.GetUserFeed(userID)
+}

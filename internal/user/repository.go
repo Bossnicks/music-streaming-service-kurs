@@ -193,3 +193,150 @@ func (r *Repository) GetUserFeed(userID int) ([]FeedItem, error) {
 	}
 	return feed, nil
 }
+
+func (r *Repository) SearchTracks(query string, genre string, sortField string, order string) ([]Track, error) {
+	var tracks []Track
+
+	querySQL := `
+		SELECT 
+			t.id, 
+			t.title, 
+			t.description, 
+			t.duration, 
+			t.created_at, 
+			t.updated_at, 
+			u.id AS author_id, 
+			u.username AS author_username
+		FROM tracks t
+		JOIN users u ON t.author_id = u.id
+		WHERE (t.title ILIKE $1 OR t.description ILIKE $1)
+		%s
+		ORDER BY %s %s`
+
+	// Добавляем фильтр по жанру, если он указан
+	genreFilter := ""
+	if genre != "" {
+		genreFilter = "AND t.genre = $2"
+	}
+
+	querySQL = fmt.Sprintf(querySQL, genreFilter, sortField, order)
+
+	var rows *sql.Rows
+	var err error
+	if genre != "" {
+		rows, err = r.db.Query(querySQL, "%"+query+"%", genre)
+	} else {
+		rows, err = r.db.Query(querySQL, "%"+query+"%")
+	}
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var track Track
+		err := rows.Scan(
+			&track.ID,
+			&track.Title,
+			&track.Description,
+			&track.Duration,
+			&track.CreatedAt,
+			&track.UpdatedAt,
+			&track.Author.ID,
+			&track.Author.Username,
+		)
+		if err != nil {
+			return nil, err
+		}
+		tracks = append(tracks, track)
+	}
+
+	return tracks, nil
+}
+
+func (r *Repository) SearchPlaylists(query string, sortField string, order string) ([]Playlist, error) {
+	var playlists []Playlist
+
+	querySQL := `
+		SELECT 
+			p.id, 
+			p.title, 
+			p.description, 
+			p.created_at, 
+			p.updated_at, 
+			u.id AS author_id, 
+			u.username AS author_username
+		FROM playlists p
+		JOIN users u ON p.author_id = u.id
+		WHERE p.title ILIKE $1 OR p.description ILIKE $1
+		ORDER BY %s %s`
+
+	querySQL = fmt.Sprintf(querySQL, sortField, order)
+
+	rows, err := r.db.Query(querySQL, "%"+query+"%")
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var playlist Playlist
+		err := rows.Scan(
+			&playlist.ID,
+			&playlist.Title,
+			&playlist.Description,
+			&playlist.CreatedAt,
+			&playlist.UpdatedAt,
+			&playlist.Author.ID,
+			&playlist.Author.Username,
+		)
+		if err != nil {
+			return nil, err
+		}
+		playlists = append(playlists, playlist)
+	}
+
+	return playlists, nil
+}
+
+// SearchUsers возвращает пользователей, соответствующих поисковому запросу
+func (r *Repository) SearchUsers(query string, sortField string, order string) ([]User, error) {
+	var users []User
+
+	querySQL := `
+		SELECT 
+			id, 
+			username, 
+			created_at, 
+			updated_at
+		FROM users
+		WHERE username ILIKE $1
+		ORDER BY %s %s`
+	if sortField == "title" {
+		sortField = "username"
+	}
+
+	querySQL = fmt.Sprintf(querySQL, sortField, order)
+
+	rows, err := r.db.Query(querySQL, "%"+query+"%")
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var user User
+		err := rows.Scan(
+			&user.ID,
+			&user.Username,
+			&user.CreatedAt,
+			&user.UpdatedAt,
+		)
+		if err != nil {
+			return nil, err
+		}
+		users = append(users, user)
+	}
+
+	return users, nil
+}

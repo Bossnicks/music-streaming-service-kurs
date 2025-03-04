@@ -9,7 +9,7 @@ type User struct {
 	Password   string     `json:"password,omitempty"`
 	Avatar     []byte     `json:"avatar"`
 	Role       string     `json:"role"`
-	CreatedAt  time.Time  `json:"created_at"`
+	CreatedAt  *time.Time `json:"created_at"`
 	UpdatedAt  *time.Time `json:"updated_at,omitempty"`
 	Token      string     `json:"token"`
 	CanComment bool       `json:"can_comment"`
@@ -42,4 +42,32 @@ type FeedItem struct {
 	TargetID   int       `json:"target_id"`
 	TargetName string    `json:"target_name"`
 	CreatedAt  time.Time `json:"created_at"`
+}
+
+type Playlist struct {
+	ID          int       `json:"id"`
+	Title       string    `json:"title"`
+	Description string    `json:"description"`
+	Avatar      string    `json:"avatar"`
+	CreatedAt   time.Time `json:"created_at"`
+	UpdatedAt   time.Time `json:"updated_at"`
+	Author      User      `json:"author"`
+	Tracks      []Track   `json:"tracks"`
+}
+
+type Track struct {
+	ID          int        `json:"id"`
+	Title       string     `json:"title"`
+	Description string     `json:"description"`
+	Avatar      string     `json:"avatar"`
+	Duration    int        `json:"duration"`
+	CreatedAt   *time.Time `json:"created_at"`
+	UpdatedAt   *time.Time `json:"updated_at"`
+	Author      User       `json:"author"`
+}
+
+type UserAvatar struct {
+	ID       int    `json:"id"`
+	Username string `json:"username"`
+	Avatar   string `json:"avatar"`
 }

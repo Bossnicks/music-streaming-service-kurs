@@ -121,3 +121,41 @@ func (s *Service) IsCommentAbilityBlocked(userID int) (bool, error) {
 func (s *Service) GetUserFeed(userID int) ([]FeedItem, error) {
 	return s.repo.GetUserFeed(userID)
 }
+
+func (s *Service) Search(query string, entityTypes []string, genre string, sortField string, order string) (map[string]interface{}, error) {
+	result := make(map[string]interface{})
+
+	// Если категории не указаны, ищем по всем
+	if len(entityTypes) == 0 {
+		entityTypes = []string{"track", "playlist", "user"}
+	}
+
+	// Поиск по каждой выбранной категории
+	for _, entityType := range entityTypes {
+		switch entityType {
+		case "track":
+			tracks, err := s.repo.SearchTracks(query, genre, sortField, order)
+			if err != nil {
+				return nil, err
+			}
+			result["tracks"] = tracks
+		case "playlist":
+			playlists, err := s.repo.SearchPlaylists(query, sortField, order)
+			if err != nil {
+				return nil, err
+			}
+			result["playlists"] = playlists
+		case "user":
+			users, err := s.repo.SearchUsers(query, sortField, order)
+			if err != nil {
+				return nil, err
+			}
+			result["users"] = users
+		default:
+			// Игнорируем неизвестные типы
+			continue
+		}
+	}
+
+	return result, nil
+}

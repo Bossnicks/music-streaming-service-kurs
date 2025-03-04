@@ -355,3 +355,28 @@ func (h *Handler) GetUserFeed(c echo.Context) error {
 
 	return c.JSON(http.StatusOK, feed)
 }
+
+// SearchHandler обрабатывает запрос на поиск
+func (h *Handler) SearchHandler(c echo.Context) error {
+	query := c.QueryParam("q")
+	entityTypes := strings.Split(c.QueryParam("type"), ",") // Получаем список категорий
+	genre := c.QueryParam("genre")                          // Получаем жанр
+	sortField := c.QueryParam("sort")
+	order := c.QueryParam("order")
+
+	// Устанавливаем значения по умолчанию
+	if sortField == "" {
+		sortField = "title"
+	}
+	if order == "" {
+		order = "asc"
+	}
+
+	// Выполняем поиск
+	result, err := h.service.Search(query, entityTypes, genre, sortField, order)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": err.Error()})
+	}
+
+	return c.JSON(http.StatusOK, result)
+}

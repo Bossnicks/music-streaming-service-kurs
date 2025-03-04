@@ -39,7 +39,7 @@ func (r *Repository) GetTrackByID(id int) (*Track, error) {
 }
 
 func (r *Repository) GetUserPlaylists(userID int) ([]Playlist, error) {
-	query := "SELECT id, title FROM playlists WHERE author_id = $1"
+	query := "SELECT id, title, avatar FROM playlists WHERE author_id = $1"
 	rows, err := r.db.Query(query, userID)
 	if err != nil {
 		return nil, err
@@ -49,7 +49,7 @@ func (r *Repository) GetUserPlaylists(userID int) ([]Playlist, error) {
 	var playlists []Playlist
 	for rows.Next() {
 		var p Playlist
-		if err := rows.Scan(&p.ID, &p.Title); err != nil {
+		if err := rows.Scan(&p.ID, &p.Title, &p.Avatar); err != nil {
 			return nil, err
 		}
 		playlists = append(playlists, p)

@@ -40,6 +40,7 @@ func main() {
 	e.PUT("/users/:id/unblockcomments", handler.UnblockComments)
 	e.GET("/users/:id/isCommentBlocked", handler.IsCommentAbilityBlocked)
 	e.GET("/beatstreet/api/music/homepage", handler.GetUserFeed)
+	e.GET("/search", handler.SearchHandler)
 
 	log.Println("Запуск user-service на порту 12000")
 	if err := e.Start(":12000"); err != nil {

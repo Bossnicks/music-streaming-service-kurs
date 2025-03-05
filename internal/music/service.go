@@ -92,6 +92,14 @@ func (s *Service) UnhideComment(commentID int) error {
 	return s.repo.UnhideComment(commentID)
 }
 
-func (s *Service) GetPlaylistByID(playlistID int) (*Playlist, error) {
-	return s.repo.GetPlaylistByID(playlistID)
+func (s *Service) GetPlaylistByID(playlistID int, isAdmin bool) (*Playlist, error) {
+	return s.repo.GetPlaylistByID(playlistID, isAdmin)
+}
+
+func (s *Service) HideTrack(commentID int) error {
+	return s.repo.HideTrack(commentID)
+}
+
+func (s *Service) UnhideTrack(commentID int) error {
+	return s.repo.UnhideTrack(commentID)
 }

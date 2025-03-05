@@ -358,11 +358,28 @@ func (h *Handler) GetUserFeed(c echo.Context) error {
 
 // SearchHandler обрабатывает запрос на поиск
 func (h *Handler) SearchHandler(c echo.Context) error {
+
 	query := c.QueryParam("q")
 	entityTypes := strings.Split(c.QueryParam("type"), ",") // Получаем список категорий
 	genre := c.QueryParam("genre")                          // Получаем жанр
 	sortField := c.QueryParam("sort")
 	order := c.QueryParam("order")
+
+	authHeader := c.Request().Header.Get("Authorization")
+	isAdmin := false
+
+	if authHeader != "" {
+		tokenString := strings.TrimPrefix(authHeader, "Bearer ")
+		fmt.Println("Token:", tokenString) // Проверяем, что приходит
+		claims, err := auth.ParseJWT(tokenString)
+		if err != nil {
+			fmt.Println("JWT Error:", err)
+		}
+		if err == nil && claims.Role == "admin" {
+			isAdmin = true
+		}
+	}
+	fmt.Println("Token:", isAdmin)
 
 	// Устанавливаем значения по умолчанию
 	if sortField == "" {
@@ -373,7 +390,7 @@ func (h *Handler) SearchHandler(c echo.Context) error {
 	}
 
 	// Выполняем поиск
-	result, err := h.service.Search(query, entityTypes, genre, sortField, order)
+	result, err := h.service.Search(query, entityTypes, genre, sortField, order, isAdmin)
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": err.Error()})
 	}

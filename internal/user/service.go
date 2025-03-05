@@ -122,7 +122,7 @@ func (s *Service) GetUserFeed(userID int) ([]FeedItem, error) {
 	return s.repo.GetUserFeed(userID)
 }
 
-func (s *Service) Search(query string, entityTypes []string, genre string, sortField string, order string) (map[string]interface{}, error) {
+func (s *Service) Search(query string, entityTypes []string, genre string, sortField string, order string, isAdmin bool) (map[string]interface{}, error) {
 	result := make(map[string]interface{})
 
 	// Если категории не указаны, ищем по всем
@@ -134,7 +134,7 @@ func (s *Service) Search(query string, entityTypes []string, genre string, sortF
 	for _, entityType := range entityTypes {
 		switch entityType {
 		case "track":
-			tracks, err := s.repo.SearchTracks(query, genre, sortField, order)
+			tracks, err := s.repo.SearchTracks(query, genre, sortField, order, isAdmin)
 			if err != nil {
 				return nil, err
 			}

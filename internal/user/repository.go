@@ -194,32 +194,40 @@ func (r *Repository) GetUserFeed(userID int) ([]FeedItem, error) {
 	return feed, nil
 }
 
-func (r *Repository) SearchTracks(query string, genre string, sortField string, order string) ([]Track, error) {
+func (r *Repository) SearchTracks(query string, genre string, sortField string, order string, isAdmin bool) ([]Track, error) {
 	var tracks []Track
 
-	querySQL := `
-		SELECT 
-			t.id, 
-			t.title, 
-			t.description, 
-			t.duration, 
-			t.created_at, 
-			t.updated_at, 
-			u.id AS author_id, 
-			u.username AS author_username
-		FROM tracks t
-		JOIN users u ON t.author_id = u.id
-		WHERE (t.title ILIKE $1 OR t.description ILIKE $1)
-		%s
+	querySQL := `  
+		SELECT  
+			t.id,  
+			t.title,  
+			t.description,  
+			t.duration,  
+			t.created_at,  
+			t.is_blocked,  
+			t.updated_at,  
+			u.id AS author_id,  
+			u.username AS author_username  
+		FROM tracks t  
+		JOIN users u ON t.author_id = u.id  
+		WHERE (t.title ILIKE $1 OR t.description ILIKE $1)  
+		%s  
+		%s  
 		ORDER BY %s %s`
 
-	// Добавляем фильтр по жанру, если он указан
+	// Фильтр по блокировке для не-админов
+	blockFilter := ""
+	if !isAdmin {
+		blockFilter = "AND t.is_blocked = false"
+	}
+
+	// Фильтр по жанру
 	genreFilter := ""
 	if genre != "" {
 		genreFilter = "AND t.genre = $2"
 	}
 
-	querySQL = fmt.Sprintf(querySQL, genreFilter, sortField, order)
+	querySQL = fmt.Sprintf(querySQL, genreFilter, blockFilter, sortField, order)
 
 	var rows *sql.Rows
 	var err error
@@ -241,6 +249,7 @@ func (r *Repository) SearchTracks(query string, genre string, sortField string, 
 			&track.Description,
 			&track.Duration,
 			&track.CreatedAt,
+			&track.Is_blocked,
 			&track.UpdatedAt,
 			&track.Author.ID,
 			&track.Author.Username,

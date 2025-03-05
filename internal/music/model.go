@@ -10,6 +10,7 @@ type Track struct {
 	Description string    `json:"description"`
 	Duration    int       `json:"duration"`
 	Created_at  time.Time `json:"created_at"`
+	Is_blocked  bool      `json:"is_blocked"`
 	Updated_at  time.Time `json:"updated_at"`
 	Author      User      `json:"author"`
 }

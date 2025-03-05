@@ -356,7 +356,7 @@ func (r *Repository) UnhideComment(commentID int) error {
 //			t.avatar AS track_avatar,
 //			t.updated_at AS track_updated_at,
 
-func (r *Repository) GetPlaylistByID(playlistID int) (*Playlist, error) {
+func (r *Repository) GetPlaylistByID(playlistID int, isAdmin bool) (*Playlist, error) {
 	query := `
 		SELECT 
 			p.id AS playlist_id,
@@ -371,6 +371,7 @@ func (r *Repository) GetPlaylistByID(playlistID int) (*Playlist, error) {
 			t.description AS track_description,
 			t.duration AS track_duration,
 			t.created_at AS track_created_at,
+			t.is_blocked AS track_is_blocked,
 			u2.id AS track_author_id,
 			u2.username AS track_author_username
 		FROM playlists p
@@ -379,6 +380,10 @@ func (r *Repository) GetPlaylistByID(playlistID int) (*Playlist, error) {
 		LEFT JOIN tracks t ON tp.track_id = t.id
 		LEFT JOIN users u2 ON t.author_id = u2.id
 		WHERE p.id = $1`
+
+	if !isAdmin {
+		query += " AND t.is_blocked = false"
+	}
 
 	rows, err := r.db.Query(query, playlistID)
 	if err != nil {
@@ -409,6 +414,7 @@ func (r *Repository) GetPlaylistByID(playlistID int) (*Playlist, error) {
 			//&track.Avatar,
 			&track.Duration,
 			&track.Created_at,
+			&track.Is_blocked,
 			//&track.Updated_at,
 			&trackAuthor.ID,
 			&trackAuthor.Username,
@@ -428,4 +434,14 @@ func (r *Repository) GetPlaylistByID(playlistID int) (*Playlist, error) {
 
 	playlist.Tracks = tracks
 	return &playlist, nil
+}
+
+func (r *Repository) HideTrack(commentID int) error {
+	_, err := r.db.Exec("UPDATE tracks SET is_blocked = TRUE WHERE id = $1", commentID)
+	return err
+}
+
+func (r *Repository) UnhideTrack(commentID int) error {
+	_, err := r.db.Exec("UPDATE tracks SET is_blocked = FALSE WHERE id = $1", commentID)
+	return err
 }

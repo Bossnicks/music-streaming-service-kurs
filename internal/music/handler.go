@@ -651,15 +651,71 @@ func (h *Handler) UnhideComment(c echo.Context) error {
 }
 
 func (h *Handler) GetPlaylist(c echo.Context) error {
+	authHeader := c.Request().Header.Get("Authorization")
+	isAdmin := false
+
+	if authHeader != "" {
+		tokenString := strings.TrimPrefix(authHeader, "Bearer ")
+		claims, err := auth.ParseJWT(tokenString)
+		if err == nil && claims.Role == "admin" {
+			isAdmin = true
+		}
+	}
 	playlistID, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
 		return c.JSON(http.StatusBadRequest, map[string]string{"error": "Invalid playlist ID"})
 	}
 
-	playlist, err := h.service.GetPlaylistByID(playlistID)
+	playlist, err := h.service.GetPlaylistByID(playlistID, isAdmin)
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to fetch playlist"})
 	}
 
 	return c.JSON(http.StatusOK, playlist)
+}
+
+func (h *Handler) HideTrack(c echo.Context) error {
+	authHeader := c.Request().Header.Get("Authorization")
+
+	if authHeader != "" {
+		tokenString := strings.TrimPrefix(authHeader, "Bearer ")
+		claims, err := auth.ParseJWT(tokenString)
+		if err != nil || claims.Role != "admin" {
+			return c.JSON(http.StatusForbidden, map[string]string{"error": "Недостаточно прав"})
+		}
+	}
+	commentID, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "Invalid track ID"})
+	}
+
+	err = h.service.HideTrack(commentID)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to hide track"})
+	}
+
+	return c.JSON(http.StatusOK, map[string]string{"message": "Track hidden"})
+}
+
+func (h *Handler) UnhideTrack(c echo.Context) error {
+	authHeader := c.Request().Header.Get("Authorization")
+
+	if authHeader != "" {
+		tokenString := strings.TrimPrefix(authHeader, "Bearer ")
+		claims, err := auth.ParseJWT(tokenString)
+		if err != nil || claims.Role != "admin" {
+			return c.JSON(http.StatusForbidden, map[string]string{"error": "Недостаточно прав"})
+		}
+	}
+	commentID, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "Invalid track ID"})
+	}
+
+	err = h.service.UnhideTrack(commentID)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to unhide track"})
+	}
+
+	return c.JSON(http.StatusOK, map[string]string{"message": "Track unhidden"})
 }

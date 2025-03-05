@@ -62,6 +62,7 @@ type Track struct {
 	Avatar      string     `json:"avatar"`
 	Duration    int        `json:"duration"`
 	CreatedAt   *time.Time `json:"created_at"`
+	Is_blocked  bool       `json:"is_blocked"`
 	UpdatedAt   *time.Time `json:"updated_at"`
 	Author      User       `json:"author"`
 }

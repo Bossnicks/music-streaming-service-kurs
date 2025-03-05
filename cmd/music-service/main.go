@@ -52,6 +52,8 @@ func main() {
 	e.POST("/songs/:id/comments", handler.AddComment)
 	e.PUT("/songs/:id/commenthide", handler.HideComment)
 	e.PUT("/songs/:id/commentunhide", handler.UnhideComment)
+	e.PUT("/songs/:id/trackhide", handler.HideTrack)
+	e.PUT("/songs/:id/trackunhide", handler.UnhideTrack)
 	e.POST("/songs/:id/listens", handler.AddTrackListen)
 	e.GET("/songs/:id/listens", handler.GetTrackListens)
 	e.GET("/artists/top", handler.GetTopUsersByPopularity)

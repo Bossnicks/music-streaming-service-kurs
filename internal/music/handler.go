@@ -719,3 +719,77 @@ func (h *Handler) UnhideTrack(c echo.Context) error {
 
 	return c.JSON(http.StatusOK, map[string]string{"message": "Track unhidden"})
 }
+
+func (h *Handler) GetSongStatistics(c echo.Context) error {
+	// Получаем заголовок авторизации
+	// authHeader := c.Request().Header.Get("Authorization")
+	// isAdmin := false
+
+	// // Проверка на роль администратора
+	// if authHeader != "" {
+	// 	tokenString := strings.TrimPrefix(authHeader, "Bearer ")
+	// 	claims, err := auth.ParseJWT(tokenString)
+	// 	if err == nil && claims.Role == "admin" {
+	// 		isAdmin = true
+	// 	}
+	// }
+
+	// Получаем trackID из параметров
+	trackID, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "Invalid track ID"})
+	}
+
+	// Получаем статистику для трека
+	stats, err := h.service.GetSongStatistics(trackID)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to fetch song statistics"})
+	}
+
+	// Отправляем статистику
+	return c.JSON(http.StatusOK, stats)
+}
+
+// handler.go
+
+func (h *Handler) GetTrackStatisticsGlobal(c echo.Context) error {
+	// Проверка авторизации
+	authHeader := c.Request().Header.Get("Authorization")
+	if authHeader == "" {
+		return c.JSON(http.StatusForbidden, map[string]string{"error": "Недостаточно прав"})
+	}
+	tokenString := strings.TrimPrefix(authHeader, "Bearer ")
+	claims, err := auth.ParseJWT(tokenString)
+	if err != nil || claims.Role != "admin" {
+		return c.JSON(http.StatusForbidden, map[string]string{"error": "Недостаточно прав"})
+
+	}
+
+	// Извлекаем параметр days
+	daysParam := c.QueryParam("days")
+	if daysParam == "" {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "Days parameter is required"})
+	}
+
+	// Преобразуем days в int
+	days, err := strconv.Atoi(daysParam)
+	if err != nil || (days != 1 && days != 2 && days != 3) {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "Invalid days parameter. Allowed values: 1, 2, 3"})
+	}
+
+	// Запрашиваем статистику
+	listens, likes, listeners, engagement, err := h.service.GetGlobalStatistics(days)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to retrieve statistics"})
+	}
+
+	// Формируем ответ
+	stats := map[string]int{
+		"listens":    listens,
+		"likes":      likes,
+		"listeners":  listeners,
+		"engagement": engagement,
+	}
+
+	return c.JSON(http.StatusOK, stats)
+}

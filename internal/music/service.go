@@ -103,3 +103,13 @@ func (s *Service) HideTrack(commentID int) error {
 func (s *Service) UnhideTrack(commentID int) error {
 	return s.repo.UnhideTrack(commentID)
 }
+
+func (s *Service) GetSongStatistics(trackID int) (*TrackStatistics, error) {
+	return s.repo.GetSongStatistics(trackID)
+}
+
+// service/statistics.go
+
+func (s *Service) GetGlobalStatistics(days int) (int, int, int, int, error) {
+	return s.repo.GetGlobalStatistics(days)
+}

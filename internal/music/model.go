@@ -47,3 +47,22 @@ type Playlist struct {
 	Author      User      `json:"author"`
 	Tracks      []Track   `json:"tracks"`
 }
+
+type TrackStatistics struct {
+	TotalListens      int
+	AverageListenTime float64
+	MorningPercent    float64
+	AfternoonPercent  float64
+	EveningPercent    float64
+	NightPercent      float64
+	TotalLikes        int
+	TotalReposts      int
+	TopCountries      []string
+}
+
+type Stats struct {
+	ListenCount     int     // Количество прослушиваний
+	LikeCount       int     // Количество лайков
+	UniqueListeners int     // Уникальные слушатели
+	Engagement      float64 // Вовлеченность (лайки / прослушивания)
+}

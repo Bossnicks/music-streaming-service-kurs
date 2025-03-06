@@ -4,6 +4,8 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+
+	"github.com/lib/pq"
 )
 
 type Repository struct {
@@ -444,4 +446,105 @@ func (r *Repository) HideTrack(commentID int) error {
 func (r *Repository) UnhideTrack(commentID int) error {
 	_, err := r.db.Exec("UPDATE tracks SET is_blocked = FALSE WHERE id = $1", commentID)
 	return err
+}
+
+func (r *Repository) GetSongStatistics(trackID int) (*TrackStatistics, error) {
+	var stats TrackStatistics
+
+	query := `
+		SELECT
+			-- Общее количество прослушиваний
+			COUNT(l.id) AS total_listens,
+
+			-- Среднее время прослушивания (в секундах)
+			COALESCE(AVG(l.listen_time), 0) AS average_listen_time,
+
+			-- Процент прослушиваний по времени суток (определяется по created_at)
+			COALESCE(COUNT(CASE WHEN EXTRACT(HOUR FROM l.created_at) >= 6 AND EXTRACT(HOUR FROM l.created_at) < 12 THEN 1 END) * 100.0 / NULLIF(COUNT(l.id), 0), 0) AS morning_percent,
+			COALESCE(COUNT(CASE WHEN EXTRACT(HOUR FROM l.created_at) >= 12 AND EXTRACT(HOUR FROM l.created_at) < 18 THEN 1 END) * 100.0 / NULLIF(COUNT(l.id), 0), 0) AS afternoon_percent,
+			COALESCE(COUNT(CASE WHEN EXTRACT(HOUR FROM l.created_at) >= 18 AND EXTRACT(HOUR FROM l.created_at) < 24 THEN 1 END) * 100.0 / NULLIF(COUNT(l.id), 0), 0) AS evening_percent,
+			COALESCE(COUNT(CASE WHEN EXTRACT(HOUR FROM l.created_at) >= 0 AND EXTRACT(HOUR FROM l.created_at) < 6 THEN 1 END) * 100.0 / NULLIF(COUNT(l.id), 0), 0) AS night_percent,
+
+			-- Количество лайков
+			(SELECT COUNT(*) FROM likes WHERE track_id = $1) AS total_likes,
+
+			-- Количество репостов
+			(SELECT COUNT(*) FROM reposts WHERE track_id = $1) AS total_reposts,
+
+			-- Топ 5 стран
+			ARRAY(
+				SELECT l.country
+				FROM track_listens l
+				WHERE l.track_id = $1
+				GROUP BY l.country
+				ORDER BY COUNT(l.country) DESC
+				LIMIT 5
+			) AS top_countries
+
+			FROM track_listens l
+			WHERE l.track_id = $1;
+				`
+
+	row := r.db.QueryRow(query, trackID)
+	err := row.Scan(
+		&stats.TotalListens,
+		&stats.AverageListenTime,
+		&stats.MorningPercent,
+		&stats.AfternoonPercent,
+		&stats.EveningPercent,
+		&stats.NightPercent,
+		&stats.TotalLikes,
+		&stats.TotalReposts,
+		pq.Array(&stats.TopCountries), // Используем pq.Array для работы с массивами в PostgreSQL
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get song statistics: %w", err)
+	}
+
+	return &stats, nil
+}
+
+// repository/statistics.go
+
+func (r *Repository) GetGlobalStatistics(days int) (int, int, int, int, error) {
+	fmt.Println(days)
+	var listens, likes, listeners, engagement int
+	fmt.Println(days)
+
+	// Количество всех прослушиваний
+	queryListens := fmt.Sprintf(`
+        SELECT COUNT(*) FROM track_listens
+        WHERE created_at >= NOW() - INTERVAL '%d days'
+    `, days)
+	if err := r.db.QueryRow(queryListens).Scan(&listens); err != nil {
+		fmt.Println(err)
+		return 0, 0, 0, 0, err
+	}
+
+	// Количество всех лайков
+	queryLikes := fmt.Sprintf(`
+        SELECT COUNT(*) FROM likes
+        WHERE created_at >= NOW() - INTERVAL '%d days'
+    `, days)
+	if err := r.db.QueryRow(queryLikes).Scan(&likes); err != nil {
+		return 0, 0, 0, 0, err
+	}
+
+	// Количество уникальных слушателей
+	queryListeners := fmt.Sprintf(`
+        SELECT COUNT(DISTINCT listener_id) FROM track_listens
+        WHERE created_at >= NOW() - INTERVAL '%d days'
+    `, days)
+	if err := r.db.QueryRow(queryListeners).Scan(&listeners); err != nil {
+		return 0, 0, 0, 0, err
+	}
+
+	// Подсчет вовлеченности (если есть прослушивания)
+	if listens > 0 {
+		engagement = (likes * 100) / listens
+	} else {
+		engagement = 0
+	}
+
+	return listens, likes, listeners, engagement, nil
 }

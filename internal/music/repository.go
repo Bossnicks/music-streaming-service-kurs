@@ -70,7 +70,6 @@ func (r *Repository) CreateTrack(title, description string, authorID int) (int, 
 	return id, nil
 }
 
-// AddLike добавляет лайк к треку и возвращает true, если лайк был добавлен
 func (r *Repository) AddLike(userID, trackID int) (bool, error) {
 	query := "INSERT INTO likes (user_id, track_id) VALUES ($1, $2) ON CONFLICT DO NOTHING"
 	res, err := r.db.Exec(query, userID, trackID)
@@ -78,7 +77,6 @@ func (r *Repository) AddLike(userID, trackID int) (bool, error) {
 		return false, err
 	}
 
-	// Проверяем, была ли вставлена новая строка
 	rowsAffected, err := res.RowsAffected()
 	if err != nil {
 		return false, err
@@ -448,6 +446,9 @@ func (r *Repository) UnhideTrack(commentID int) error {
 	return err
 }
 
+// -- Среднее время прослушивания (в секундах)
+// COALESCE(AVG(l.listen_time), 0) AS average_listen_time,
+
 func (r *Repository) GetSongStatistics(trackID int) (*TrackStatistics, error) {
 	var stats TrackStatistics
 
@@ -456,8 +457,7 @@ func (r *Repository) GetSongStatistics(trackID int) (*TrackStatistics, error) {
 			-- Общее количество прослушиваний
 			COUNT(l.id) AS total_listens,
 
-			-- Среднее время прослушивания (в секундах)
-			COALESCE(AVG(l.listen_time), 0) AS average_listen_time,
+
 
 			-- Процент прослушиваний по времени суток (определяется по created_at)
 			COALESCE(COUNT(CASE WHEN EXTRACT(HOUR FROM l.created_at) >= 6 AND EXTRACT(HOUR FROM l.created_at) < 12 THEN 1 END) * 100.0 / NULLIF(COUNT(l.id), 0), 0) AS morning_percent,
@@ -488,7 +488,7 @@ func (r *Repository) GetSongStatistics(trackID int) (*TrackStatistics, error) {
 	row := r.db.QueryRow(query, trackID)
 	err := row.Scan(
 		&stats.TotalListens,
-		&stats.AverageListenTime,
+		//&stats.AverageListenTime,
 		&stats.MorningPercent,
 		&stats.AfternoonPercent,
 		&stats.EveningPercent,
@@ -497,6 +497,7 @@ func (r *Repository) GetSongStatistics(trackID int) (*TrackStatistics, error) {
 		&stats.TotalReposts,
 		pq.Array(&stats.TopCountries), // Используем pq.Array для работы с массивами в PostgreSQL
 	)
+	fmt.Println(err)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get song statistics: %w", err)
 	}

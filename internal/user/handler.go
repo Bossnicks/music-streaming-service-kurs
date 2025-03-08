@@ -22,7 +22,7 @@ func NewHandler(service *Service) *Handler {
 func (h *Handler) Register(c echo.Context) error {
 	var req RegisterRequest
 	if err := c.Bind(&req); err != nil {
-		return c.JSON(http.StatusBadRequest, map[string]string{"error": "Некорректные данные"})
+		return c.JSON(http.StatusBadRequest, map[string]string{"message": "Некорректные данные"})
 	}
 
 	user := &User{
@@ -34,7 +34,7 @@ func (h *Handler) Register(c echo.Context) error {
 
 	err := h.service.RegisterUser(user)
 	if err != nil {
-		return c.JSON(http.StatusBadRequest, map[string]string{"error": "Пользователь уже существует!"})
+		return c.JSON(http.StatusBadRequest, map[string]string{"message": "Пользователь уже существует!"})
 	}
 
 	return c.JSON(http.StatusCreated, map[string]string{"message": "Успешная регистрация"})
@@ -45,12 +45,12 @@ func (h *Handler) Login(c echo.Context) error {
 	var req LoginRequest
 
 	if err := c.Bind(&req); err != nil {
-		return c.JSON(http.StatusBadRequest, map[string]string{"error": "Неверный формат запроса"})
+		return c.JSON(http.StatusBadRequest, map[string]string{"message": "Неверный формат запроса"})
 	}
 
 	token, user, err := h.service.Authenticate(req.Email, req.Password)
 	if err != nil {
-		return c.JSON(http.StatusUnauthorized, map[string]string{"error": "Неверные учетные данные"})
+		return c.JSON(http.StatusUnauthorized, map[string]string{"message": "Неверные учетные данные"})
 	}
 
 	return c.JSON(http.StatusOK, map[string]interface{}{

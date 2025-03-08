@@ -12,13 +12,11 @@ import (
 )
 
 func main() {
-	// Подключение к БД
 	db, err := database.Connect()
 	if err != nil {
 		log.Fatalf("Ошибка подключения к БД: %v", err)
 	}
 
-	// Подключение к MinIO
 	minioStorage, err := storage.NewMinioStorage()
 	if err != nil {
 		log.Fatalf("Ошибка подключения к MinIO: %v", err)

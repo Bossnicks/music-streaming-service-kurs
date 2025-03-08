@@ -8,16 +8,14 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 )
 
-var jwtSecret = []byte("your_secret_key") // Используйте переменные окружения для секретного ключа!
+var jwtSecret = []byte("your_secret_key")
 
-// Структура токена
 type Claims struct {
 	UserID int    `json:"user_id"`
 	Role   string `json:"role"`
 	jwt.RegisteredClaims
 }
 
-// Генерация JWT-токена
 func GenerateJWT(userID int, role string) (string, error) {
 	expirationTime := time.Now().Add(24 * time.Hour) // Токен действует 24 часа
 	claims := &Claims{

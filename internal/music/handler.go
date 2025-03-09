@@ -12,7 +12,6 @@ import (
 	"strings"
 
 	"github.com/Bossnicks/music-streaming-service-kurs/pkg/auth"
-	"github.com/Bossnicks/music-streaming-service-kurs/pkg/network"
 
 	"github.com/Bossnicks/music-streaming-service-kurs/pkg/storage"
 
@@ -79,6 +78,41 @@ func (h *Handler) GetTrackInfo(c echo.Context) error {
 	}
 
 	return c.JSON(http.StatusOK, track)
+}
+
+func (h *Handler) GetImage(c echo.Context) error {
+	id := c.Param("id") // Получаем id
+	bucketType := c.Param("bucket")
+
+	// Попытка получить изображение с расширением .jpg
+	filename := fmt.Sprintf("%s.jpg", id)
+	obj, err := h.storage.GetImage(bucketType, filename)
+	fmt.Println(err)
+	if err == nil {
+		defer obj.Close()
+		buf := new(bytes.Buffer)
+		if _, err := io.Copy(buf, obj); err != nil {
+			return c.String(http.StatusInternalServerError, "Ошибка чтения файла")
+		}
+		return c.Blob(http.StatusOK, http.DetectContentType(buf.Bytes()), buf.Bytes())
+	}
+
+	// Если файл с расширением .jpg не найден, пробуем .png
+	fmt.Println(err)
+
+	filename = fmt.Sprintf("%s.png", id)
+	obj, err = h.storage.GetImage(bucketType, filename)
+	if err != nil {
+		return c.String(http.StatusNotFound, "Изображение не найдено")
+	}
+
+	defer obj.Close()
+	buf := new(bytes.Buffer)
+	if _, err := io.Copy(buf, obj); err != nil {
+		return c.String(http.StatusInternalServerError, "Ошибка чтения файла")
+	}
+
+	return c.Blob(http.StatusOK, http.DetectContentType(buf.Bytes()), buf.Bytes())
 }
 
 // GetPlaylist отдает m3u8 файл
@@ -166,8 +200,11 @@ func (h *Handler) UploadTrack(c echo.Context) error {
 	}
 	title := c.FormValue("title")
 	description := c.FormValue("description")
+	genre := c.FormValue("genre")
 
-	fmt.Println(file)
+	cover, _ := c.FormFile("cover")
+
+	//fmt.Println(file)
 
 	// Открываем файл
 	src, err := file.Open()
@@ -176,8 +213,14 @@ func (h *Handler) UploadTrack(c echo.Context) error {
 	}
 	defer src.Close()
 
+	pic, err := cover.Open()
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Ошибка открытия файла"})
+	}
+	defer pic.Close()
+
 	// Сохраняем в БД и получаем ID
-	trackID, err := h.service.CreateTrack(title, description, claims.UserID)
+	trackID, err := h.service.CreateTrack(title, description, genre, claims.UserID)
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Ошибка сохранения в БД"})
 	}
@@ -233,6 +276,12 @@ func (h *Handler) UploadTrack(c echo.Context) error {
 			return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Ошибка загрузки сегментов"})
 		}
 	}
+	fileExtension := filepath.Ext(cover.Filename)
+
+	err = h.storage.UploadImage("track", fmt.Sprintf("%d%s", trackID, fileExtension), pic)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Ошибка загрузки m3u8"})
+	}
 
 	// Удаляем временные файлы
 	os.Remove(tmpPath)
@@ -267,6 +316,36 @@ func (h *Handler) AddLike(c echo.Context) error {
 	}
 
 	return c.JSON(http.StatusOK, map[string]bool{"liked": liked})
+}
+
+func (h *Handler) AddSongToPlaylist(c echo.Context) error {
+	authHeader := c.Request().Header.Get("Authorization")
+	if authHeader == "" {
+		return c.JSON(http.StatusUnauthorized, map[string]string{"error": "Токен отсутствует"})
+	}
+
+	tokenString := strings.TrimPrefix(authHeader, "Bearer ")
+	_, err := auth.ParseJWT(tokenString)
+	if err != nil {
+		return c.JSON(http.StatusUnauthorized, map[string]string{"error": "Неверный токен"})
+	}
+
+	trackID, err := strconv.Atoi(c.Param("trackID"))
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "Некорректный ID трека"})
+	}
+
+	playlistId, err := strconv.Atoi(c.Param("playlistId"))
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "Некорректный ID плейлиста"})
+	}
+
+	song, err := h.service.AddSongToPlaylist(playlistId, trackID)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Ошибка добавления в плейлист"})
+	}
+
+	return c.JSON(http.StatusOK, map[string]bool{"success": song})
 }
 
 func (h *Handler) RemoveLike(c echo.Context) error {
@@ -491,6 +570,18 @@ func (h *Handler) AddTrackListen(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, map[string]string{"error": "Invalid track ID"})
 	}
 
+	var req struct {
+		SongId  int
+		Country string
+	}
+
+	if err := c.Bind(&req); err != nil {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "Неверный формат запроса"})
+	}
+
+	fmt.Println(req.Country)
+	fmt.Println(req.SongId)
+
 	var listenerID *int
 
 	authHeader := c.Request().Header.Get("Authorization")
@@ -507,17 +598,17 @@ func (h *Handler) AddTrackListen(c echo.Context) error {
 
 	}
 
-	ip, err := network.GetPublicIP()
+	// ip, err := network.GetPublicIP()
 
-	if err != nil {
-		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to determine ip"})
-	}
-	country, err := network.GetCountryByIP(ip)
-	if err != nil {
-		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to determine country"})
-	}
+	// if err != nil {
+	// 	return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to determine ip"})
+	// }
+	// country, err := network.GetCountryByIP(ip)
+	// if err != nil {
+	// 	return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to determine country"})
+	// }
 
-	fmt.Println("Country detected:", country)
+	fmt.Println("Country detected:", req.Country)
 
 	listenerIDValue := 0
 	if listenerID != nil {
@@ -528,7 +619,7 @@ func (h *Handler) AddTrackListen(c echo.Context) error {
 		listenerIDValue = 0
 	}
 
-	id, err := h.service.AddTrackListen(listenerIDValue, trackID, country)
+	id, err := h.service.AddTrackListen(listenerIDValue, trackID, req.Country)
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to add track listen"})
 	}

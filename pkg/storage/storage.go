@@ -2,6 +2,7 @@ package storage
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"log"
 	"os"
@@ -13,8 +14,10 @@ import (
 
 // MinioStorage структура для работы с MinIO
 type MinioStorage struct {
-	Client *minio.Client
-	Bucket string
+	Client          *minio.Client
+	Bucket          string
+	Track_bucket    string
+	Playlist_bucket string
 }
 
 // NewMinioStorage инициализация MinIO
@@ -29,6 +32,8 @@ func NewMinioStorage() (*MinioStorage, error) {
 	accessKey := os.Getenv("MINIO_ACCESS_KEY")
 	secretKey := os.Getenv("MINIO_SECRET_KEY")
 	bucket := os.Getenv("MINIO_BUCKET")
+	track_bucket := os.Getenv("MINIO_TRACK_BUCKET")
+	playlist_bucket := os.Getenv("MINIO_PLAYLIST_BUCKET")
 
 	// Подключение к MinIO
 	client, err := minio.New(endpoint, &minio.Options{
@@ -41,8 +46,10 @@ func NewMinioStorage() (*MinioStorage, error) {
 
 	log.Println("Подключение к MinIO успешно!")
 	return &MinioStorage{
-		Client: client,
-		Bucket: bucket,
+		Client:          client,
+		Bucket:          bucket,
+		Track_bucket:    track_bucket,
+		Playlist_bucket: playlist_bucket,
 	}, nil
 }
 
@@ -88,4 +95,56 @@ func (s *MinioStorage) UploadFile(objectName, filePath string) error {
 	// Загружаем файл в MinIO
 	_, err = s.Client.PutObject(context.Background(), s.Bucket, objectName, file, -1, minio.PutObjectOptions{})
 	return err
+}
+
+func (s *MinioStorage) UploadImage(bucketType, objectName string, file io.Reader) error {
+	var err error
+	if bucketType == "track" {
+		_, err = s.Client.PutObject(context.Background(), s.Track_bucket, objectName, file, -1, minio.PutObjectOptions{})
+	}
+	if bucketType == "playlist" {
+		_, err = s.Client.PutObject(context.Background(), s.Playlist_bucket, objectName, file, -1, minio.PutObjectOptions{})
+	}
+	return err
+}
+
+func (s *MinioStorage) GetImage(bucketType string, fileName string) (io.ReadCloser, error) {
+	ctx := context.Background()
+	var obj *minio.Object
+	var err error
+
+	// Проверяем, существует ли объект с помощью StatObject
+	if bucketType == "track" {
+		_, err = s.Client.StatObject(ctx, s.Track_bucket, fileName, minio.StatObjectOptions{})
+	}
+	if bucketType == "playlist" {
+		_, err = s.Client.StatObject(ctx, s.Playlist_bucket, fileName, minio.StatObjectOptions{})
+	}
+
+	// Если объект не существует, вернем ошибку
+	if err != nil {
+		// Проверяем ошибку на отсутствие файла
+		if minio.ToErrorResponse(err).Code == "NoSuchKey" {
+			log.Printf("Объект %s не найден в бакете %s", fileName, bucketType)
+			return nil, fmt.Errorf("file not found")
+		}
+		log.Printf("Ошибка при получении метаданных для %s: %v", fileName, err)
+		return nil, err
+	}
+
+	// Если объект существует, получаем его
+	if bucketType == "track" {
+		obj, err = s.Client.GetObject(ctx, s.Track_bucket, fileName, minio.GetObjectOptions{})
+	}
+	if bucketType == "playlist" {
+		obj, err = s.Client.GetObject(ctx, s.Playlist_bucket, fileName, minio.GetObjectOptions{})
+	}
+
+	if err != nil {
+		log.Printf("Ошибка при получении объекта %s: %v", fileName, err)
+		return nil, err
+	}
+
+	log.Printf("Объект %s найден в бакете %s", fileName, bucketType)
+	return obj, nil
 }

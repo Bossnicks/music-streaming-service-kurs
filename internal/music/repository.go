@@ -41,7 +41,7 @@ func (r *Repository) GetTrackByID(id int) (*Track, error) {
 }
 
 func (r *Repository) GetUserPlaylists(userID int) ([]Playlist, error) {
-	query := "SELECT id, title, avatar FROM playlists WHERE author_id = $1"
+	query := "SELECT id, title FROM playlists WHERE author_id = $1"
 	rows, err := r.db.Query(query, userID)
 	if err != nil {
 		return nil, err
@@ -51,7 +51,7 @@ func (r *Repository) GetUserPlaylists(userID int) ([]Playlist, error) {
 	var playlists []Playlist
 	for rows.Next() {
 		var p Playlist
-		if err := rows.Scan(&p.ID, &p.Title, &p.Avatar); err != nil {
+		if err := rows.Scan(&p.ID, &p.Title); err != nil {
 			return nil, err
 		}
 		playlists = append(playlists, p)
@@ -60,10 +60,10 @@ func (r *Repository) GetUserPlaylists(userID int) ([]Playlist, error) {
 	return playlists, nil
 }
 
-func (r *Repository) CreateTrack(title, description string, authorID int) (int, error) {
+func (r *Repository) CreateTrack(title, description, genre string, authorID int) (int, error) {
 	var id int
-	query := "INSERT INTO tracks (author_id, title, description) VALUES ($1, $2, $3) RETURNING id"
-	err := r.db.QueryRow(query, authorID, title, description).Scan(&id)
+	query := "INSERT INTO tracks (author_id, title, description, genre) VALUES ($1, $2, $3, $4) RETURNING id"
+	err := r.db.QueryRow(query, authorID, title, description, genre).Scan(&id)
 	if err != nil {
 		return 0, err
 	}
@@ -74,6 +74,36 @@ func (r *Repository) AddLike(userID, trackID int) (bool, error) {
 	query := "INSERT INTO likes (user_id, track_id) VALUES ($1, $2) ON CONFLICT DO NOTHING"
 	res, err := r.db.Exec(query, userID, trackID)
 	if err != nil {
+		return false, err
+	}
+
+	rowsAffected, err := res.RowsAffected()
+	if err != nil {
+		return false, err
+	}
+
+	return rowsAffected > 0, nil
+}
+
+func (r *Repository) AddSongToPlaylist(playlistId, trackID int) (bool, error) {
+	// Получаем максимальную позицию для данного user_id и playlist_id
+	query := `SELECT COALESCE(MAX(position), 0) FROM tracks_playlists WHERE playlist_id = $1 AND track_id = $2`
+	var maxPosition int
+	err := r.db.QueryRow(query, playlistId, trackID).Scan(&maxPosition)
+	if err != nil {
+		fmt.Println(err)
+		return false, err
+	}
+
+	// Вставляем новый трек с позицией +1
+	insertQuery := `
+		INSERT INTO tracks_playlists (playlist_id, track_id, position)
+		VALUES ($1, $2, $3)
+		ON CONFLICT (playlist_id, track_id) DO NOTHING
+	`
+	res, err := r.db.Exec(insertQuery, playlistId, trackID, maxPosition+1)
+	if err != nil {
+		fmt.Println(err)
 		return false, err
 	}
 
@@ -366,14 +396,14 @@ func (r *Repository) GetPlaylistByID(playlistID int, isAdmin bool) (*Playlist, e
 			p.updated_at AS playlist_updated_at,
 			u.id AS author_id,
 			u.username AS author_username,
-			t.id AS track_id,
-			t.title AS track_title,
-			t.description AS track_description,
-			t.duration AS track_duration,
-			t.created_at AS track_created_at,
-			t.is_blocked AS track_is_blocked,
-			u2.id AS track_author_id,
-			u2.username AS track_author_username
+			COALESCE(t.id, 0) AS track_id,
+			COALESCE(t.title, '') AS track_title,
+			COALESCE(t.description, '') AS track_description,
+			COALESCE(t.duration, 0) AS track_duration,
+			COALESCE(t.created_at, NOW()) AS track_created_at,
+			COALESCE(t.is_blocked, false) AS track_is_blocked,
+			COALESCE(u2.id, 0) AS track_author_id,
+			COALESCE(u2.username, '') AS track_author_username
 		FROM playlists p
 		JOIN users u ON p.author_id = u.id
 		LEFT JOIN tracks_playlists tp ON p.id = tp.playlist_id
@@ -382,7 +412,7 @@ func (r *Repository) GetPlaylistByID(playlistID int, isAdmin bool) (*Playlist, e
 		WHERE p.id = $1`
 
 	if !isAdmin {
-		query += " AND t.is_blocked = false"
+		query += " AND (t.id IS NULL OR t.is_blocked = false)"
 	}
 
 	rows, err := r.db.Query(query, playlistID)
@@ -393,6 +423,7 @@ func (r *Repository) GetPlaylistByID(playlistID int, isAdmin bool) (*Playlist, e
 
 	var playlist Playlist
 	var tracks []Track
+	firstRow := true // Флаг для первой строки
 
 	for rows.Next() {
 		var track Track
@@ -402,34 +433,40 @@ func (r *Repository) GetPlaylistByID(playlistID int, isAdmin bool) (*Playlist, e
 			&playlist.ID,
 			&playlist.Title,
 			&playlist.Description,
-			//&playlist.Avatar,
 			&playlist.CreatedAt,
 			&playlist.UpdatedAt,
 			&playlist.Author.ID,
 			&playlist.Author.Username,
-			//&playlist.Author.Avatar,
 			&track.ID,
 			&track.Title,
 			&track.Description,
-			//&track.Avatar,
 			&track.Duration,
 			&track.Created_at,
 			&track.Is_blocked,
-			//&track.Updated_at,
 			&trackAuthor.ID,
 			&trackAuthor.Username,
 		)
+
 		if err != nil {
-			fmt.Println(err)
+			fmt.Println("Scan error:", err)
 			return nil, err
 		}
 
-		//playlist.Avatar = nil
-		//playlist.Author.Avatar = nil
-		//track.Avatar = nil
+		// Если это первая строка, то уже есть данные о плейлисте
+		if firstRow {
+			firstRow = false
+		}
 
-		track.Author = trackAuthor
-		tracks = append(tracks, track)
+		// Если трек реально существует (id != 0), добавляем его в список
+		if track.ID != 0 {
+			track.Author = trackAuthor
+			tracks = append(tracks, track)
+		}
+	}
+
+	// Если вообще не было строк, значит плейлиста нет
+	if firstRow {
+		return nil, fmt.Errorf("playlist not found")
 	}
 
 	playlist.Tracks = tracks

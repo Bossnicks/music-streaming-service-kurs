@@ -35,7 +35,7 @@ func ParseJWT(tokenString string) (*Claims, error) {
 		return jwtSecret, nil
 	})
 	if err != nil {
-		fmt.Println(err)
+		fmt.Println(err, "cdcd")
 		return nil, err
 	}
 

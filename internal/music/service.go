@@ -20,12 +20,16 @@ func (s *Service) GetUserPlaylists(userID int) ([]Playlist, error) {
 	return s.repo.GetUserPlaylists(userID)
 }
 
-func (s *Service) CreateTrack(title, description string, authorID int) (int, error) {
-	return s.repo.CreateTrack(title, description, authorID)
+func (s *Service) CreateTrack(title, description, genre string, authorID int) (int, error) {
+	return s.repo.CreateTrack(title, description, genre, authorID)
 }
 
 func (s *Service) AddLike(userID, trackID int) (bool, error) {
 	return s.repo.AddLike(userID, trackID)
+}
+
+func (s *Service) AddSongToPlaylist(playlistId, trackID int) (bool, error) {
+	return s.repo.AddSongToPlaylist(playlistId, trackID)
 }
 
 func (s *Service) RemoveLike(userID, trackID int) (bool, error) {

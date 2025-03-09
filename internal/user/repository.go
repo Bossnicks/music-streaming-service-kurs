@@ -196,6 +196,7 @@ func (r *Repository) GetUserFeed(userID int) ([]FeedItem, error) {
 
 func (r *Repository) SearchTracks(query string, genre string, sortField string, order string, isAdmin bool) ([]Track, error) {
 	var tracks []Track
+	fmt.Println(genre)
 
 	querySQL := `  
 		SELECT  
@@ -228,6 +229,8 @@ func (r *Repository) SearchTracks(query string, genre string, sortField string, 
 	}
 
 	querySQL = fmt.Sprintf(querySQL, genreFilter, blockFilter, sortField, order)
+
+	fmt.Println(querySQL)
 
 	var rows *sql.Rows
 	var err error

@@ -35,8 +35,10 @@ func main() {
 
 	e.GET("/songs/:id/info", handler.GetTrackInfo)
 	e.GET("/songs/:id", handler.GetTrackPlaylist) // Эндпоинт для m3u8
+	e.GET("/images/:id/:bucket", handler.GetImage)
 	e.POST("/beatstreet/api/users/addnewplaylist", handler.AddPlaylist)
 	e.GET("/beatstreet/api/users/allplaylist", handler.GetUserPlaylists)
+	e.POST("/songs/:playlistId/playlist/addsong/:trackID", handler.AddSongToPlaylist)
 	e.POST("/songs/upload", handler.UploadTrack)
 	e.POST("/songs/:id/likes", handler.AddLike)
 	e.DELETE("/songs/:id/likes", handler.RemoveLike)
@@ -60,6 +62,7 @@ func main() {
 	e.GET("/playlists/:id", handler.GetPlaylist)
 	e.GET("/songs/:id/statistics", handler.GetSongStatistics)
 	e.GET("/globalstatistics", handler.GetTrackStatisticsGlobal)
+	//e.GET("/playlists/addsong", )
 
 	log.Println("Запуск music-service на порту 11000")
 	if err := e.Start(":11000"); err != nil {

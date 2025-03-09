@@ -28,14 +28,12 @@ func NewHandler(service *Service, storage *storage.MinioStorage) *Handler {
 }
 
 func (h *Handler) AddPlaylist(c echo.Context) error {
-
 	authHeader := c.Request().Header.Get("Authorization")
 	if authHeader == "" {
 		return c.JSON(http.StatusUnauthorized, map[string]string{"error": "Токен отсутствует"})
 	}
 
 	tokenString := strings.TrimPrefix(authHeader, "Bearer ")
-
 	claims, err := auth.ParseJWT(tokenString)
 	if err != nil {
 		return c.JSON(http.StatusUnauthorized, map[string]string{"error": "Неверный токен"})
@@ -43,18 +41,38 @@ func (h *Handler) AddPlaylist(c echo.Context) error {
 
 	userID := claims.UserID
 
-	var req struct {
-		Title  string `json:"title"`
-		Avatar string `json:"avatar"`
+	// Получение данных из формы
+	title := c.FormValue("title")
+	description := c.FormValue("description")
+
+	if title == "" {
+		fmt.Println(err)
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "Название плейлиста обязательно"})
 	}
 
-	if err := c.Bind(&req); err != nil {
-		return c.JSON(http.StatusBadRequest, map[string]string{"error": "Некорректные данные"})
-	}
+	// Загрузка обложки (если есть)
 
-	playlistID, err := h.service.AddPlaylist(req.Title, req.Avatar, userID)
+	playlistID, err := h.service.AddPlaylist(title, description, userID)
 	if err != nil {
+		fmt.Println(err)
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Ошибка при создании плейлиста"})
+	}
+
+	file, err := c.FormFile("cover")
+	if err == nil {
+		src, err := file.Open()
+		if err != nil {
+			fmt.Println(err)
+			return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Ошибка при загрузке обложки"})
+		}
+		defer src.Close()
+		fileExtension := filepath.Ext(file.Filename)
+
+		err = h.storage.UploadImage("playlist", fmt.Sprintf("%d%s", playlistID, fileExtension), src)
+		if err != nil {
+			fmt.Println(err)
+			return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Ошибка загрузки m3u8"})
+		}
 	}
 
 	return c.JSON(http.StatusCreated, map[string]interface{}{
@@ -340,12 +358,12 @@ func (h *Handler) AddSongToPlaylist(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, map[string]string{"error": "Некорректный ID плейлиста"})
 	}
 
-	song, err := h.service.AddSongToPlaylist(playlistId, trackID)
+	_, err = h.service.AddSongToPlaylist(playlistId, trackID)
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Ошибка добавления в плейлист"})
 	}
 
-	return c.JSON(http.StatusOK, map[string]bool{"success": song})
+	return c.JSON(http.StatusOK, map[string]string{"message": "Успешно добавлено"})
 }
 
 func (h *Handler) RemoveLike(c echo.Context) error {
@@ -499,6 +517,29 @@ func (h *Handler) IsTrackReposted(c echo.Context) error {
 	}
 
 	return c.JSON(http.StatusOK, map[string]bool{"reposted": reposted})
+}
+
+func (h *Handler) GetFavorites(c echo.Context) error {
+	authHeader := c.Request().Header.Get("Authorization")
+
+	if authHeader == "" {
+		return c.JSON(http.StatusUnauthorized, map[string]string{"error": "Нет токена"})
+	}
+
+	tokenString := strings.TrimPrefix(authHeader, "Bearer ")
+	claims, err := auth.ParseJWT(tokenString)
+
+	if err != nil {
+		return c.JSON(http.StatusUnauthorized, map[string]string{"error": "Токен неверный"})
+	}
+
+	favorites, err := h.service.GetFavorites(claims.UserID)
+
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to fetch comments"})
+	}
+
+	return c.JSON(http.StatusOK, favorites)
 }
 
 func (h *Handler) GetComments(c echo.Context) error {

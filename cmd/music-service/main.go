@@ -62,6 +62,7 @@ func main() {
 	e.GET("/playlists/:id", handler.GetPlaylist)
 	e.GET("/songs/:id/statistics", handler.GetSongStatistics)
 	e.GET("/globalstatistics", handler.GetTrackStatisticsGlobal)
+	e.GET("/beatstreet/api/users/favoritesongs", handler.GetFavorites)
 	//e.GET("/playlists/addsong", )
 
 	log.Println("Запуск music-service на порту 11000")

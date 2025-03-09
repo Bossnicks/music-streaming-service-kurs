@@ -16,10 +16,10 @@ func NewRepository(db *sql.DB) *Repository {
 	return &Repository{db: db}
 }
 
-func (r *Repository) AddPlaylist(title string, avatar string, userID int) (int, error) {
+func (r *Repository) AddPlaylist(title, description string, userID int) (int, error) {
 	var playlistID int
-	query := "INSERT INTO playlists (title, avatar, author_id) VALUES ($1, $2, $3) RETURNING id"
-	err := r.db.QueryRow(query, title, avatar, userID).Scan(&playlistID)
+	query := "INSERT INTO playlists (title, description, author_id) VALUES ($1, $2, $3) RETURNING id"
+	err := r.db.QueryRow(query, title, description, userID).Scan(&playlistID)
 	if err != nil {
 		return 0, err
 	}
@@ -60,6 +60,32 @@ func (r *Repository) GetUserPlaylists(userID int) ([]Playlist, error) {
 	return playlists, nil
 }
 
+func (r *Repository) GetFavorites(userID int) ([]Track, error) {
+	query := `
+		SELECT t.id, t.title, t.description, t.duration 
+		FROM tracks t
+		JOIN likes l ON t.id = l.track_id
+		WHERE l.user_id = $1
+	`
+
+	rows, err := r.db.Query(query, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var track []Track
+	for rows.Next() {
+		var t Track
+		if err := rows.Scan(&t.ID, &t.Title, &t.Description, &t.Duration); err != nil {
+			return nil, err
+		}
+		track = append(track, t)
+	}
+
+	return track, nil
+}
+
 func (r *Repository) CreateTrack(title, description, genre string, authorID int) (int, error) {
 	var id int
 	query := "INSERT INTO tracks (author_id, title, description, genre) VALUES ($1, $2, $3, $4) RETURNING id"
@@ -86,7 +112,7 @@ func (r *Repository) AddLike(userID, trackID int) (bool, error) {
 }
 
 func (r *Repository) AddSongToPlaylist(playlistId, trackID int) (bool, error) {
-	// Получаем максимальную позицию для данного user_id и playlist_id
+	// Получаем максимальную позицию для данного playlist_id и track_id
 	query := `SELECT COALESCE(MAX(position), 0) FROM tracks_playlists WHERE playlist_id = $1 AND track_id = $2`
 	var maxPosition int
 	err := r.db.QueryRow(query, playlistId, trackID).Scan(&maxPosition)
@@ -112,7 +138,12 @@ func (r *Repository) AddSongToPlaylist(playlistId, trackID int) (bool, error) {
 		return false, err
 	}
 
-	return rowsAffected > 0, nil
+	// Если строка не была вставлена (из-за конфликта)
+	if rowsAffected == 0 {
+		return false, fmt.Errorf("конфликт: трек с таким ID уже существует в плейлисте")
+	}
+
+	return true, nil
 }
 
 // RemoveLike удаляет лайк и возвращает true, если он был удален
@@ -245,10 +276,23 @@ func (r *Repository) GetCommentsByTrackID(trackID int, isAdmin bool) ([]Comment,
 }
 
 func (r *Repository) AddComment(trackID, userID int, text string, moment int) (int, error) {
+	// Проверяем, разрешено ли пользователю оставлять комментарии
+	var canComment bool
+	queryCheck := `SELECT can_comment FROM users WHERE id = $1`
+	err := r.db.QueryRow(queryCheck, userID).Scan(&canComment)
+	if err != nil {
+		return 0, err
+	}
+
+	// Если пользователю запрещено оставлять комментарии
+	if !canComment {
+		return 0, fmt.Errorf("пользователю запрещено оставлять комментарии")
+	}
+
 	var id int
 	query := `INSERT INTO comments (track_id, user_id, text, moment) 
 	          VALUES ($1, $2, $3, $4) RETURNING id`
-	err := r.db.QueryRow(query, trackID, userID, text, moment).Scan(&id)
+	err = r.db.QueryRow(query, trackID, userID, text, moment).Scan(&id)
 	if err != nil {
 		return 0, err
 	}

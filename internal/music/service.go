@@ -8,8 +8,8 @@ func NewService(repo *Repository) *Service {
 	return &Service{repo: repo}
 }
 
-func (s *Service) AddPlaylist(title string, avatar string, userID int) (int, error) {
-	return s.repo.AddPlaylist(title, avatar, userID)
+func (s *Service) AddPlaylist(title string, description string, userID int) (int, error) {
+	return s.repo.AddPlaylist(title, description, userID)
 }
 
 func (s *Service) GetTrack(id int) (*Track, error) {
@@ -38,6 +38,10 @@ func (s *Service) RemoveLike(userID, trackID int) (bool, error) {
 
 func (s *Service) GetLikeCount(trackID int) (int, error) {
 	return s.repo.GetLikeCount(trackID)
+}
+
+func (s *Service) GetFavorites(userID int) ([]Track, error) {
+	return s.repo.GetFavorites(userID)
 }
 
 func (s *Service) IsTrackLiked(userID, trackID int) (bool, error) {

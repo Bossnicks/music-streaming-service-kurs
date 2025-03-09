@@ -176,14 +176,14 @@ func (h *Handler) streamFromMinIO(c echo.Context, filename string) error {
 func (h *Handler) GetUserPlaylists(c echo.Context) error {
 	authHeader := c.Request().Header.Get("Authorization")
 	if authHeader == "" {
-		return c.JSON(http.StatusUnauthorized, map[string]string{"error": "Токен отсутствует"})
+		return c.JSON(http.StatusUnauthorized, map[string]string{"error": "Вы не вошли в аккаунт"})
 	}
 
 	tokenString := strings.TrimPrefix(authHeader, "Bearer ")
 
 	claims, err := auth.ParseJWT(tokenString)
 	if err != nil {
-		return c.JSON(http.StatusUnauthorized, map[string]string{"error": "Неверный токен"})
+		return c.JSON(http.StatusUnauthorized, map[string]string{"error": "Вы не вошли в аккаунт"})
 	}
 
 	// if claims.Role != "user" {
@@ -339,13 +339,13 @@ func (h *Handler) AddLike(c echo.Context) error {
 func (h *Handler) AddSongToPlaylist(c echo.Context) error {
 	authHeader := c.Request().Header.Get("Authorization")
 	if authHeader == "" {
-		return c.JSON(http.StatusUnauthorized, map[string]string{"error": "Токен отсутствует"})
+		return c.JSON(http.StatusUnauthorized, map[string]string{"error": "Вы не вошли в аккаунт"})
 	}
 
 	tokenString := strings.TrimPrefix(authHeader, "Bearer ")
 	_, err := auth.ParseJWT(tokenString)
 	if err != nil {
-		return c.JSON(http.StatusUnauthorized, map[string]string{"error": "Неверный токен"})
+		return c.JSON(http.StatusUnauthorized, map[string]string{"error": "Недостаточно прав"})
 	}
 
 	trackID, err := strconv.Atoi(c.Param("trackID"))

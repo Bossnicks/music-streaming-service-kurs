@@ -54,14 +54,15 @@ func (s *Service) Authenticate(email, password string) (string, *User, error) {
 	}
 
 	sanitizedUser := &User{
-		ID:        user.ID,
-		Username:  user.Username,
-		Email:     user.Email,
-		Password:  "",
-		Avatar:    user.Avatar,
-		Role:      user.Role,
-		CreatedAt: user.CreatedAt,
-		UpdatedAt: nil,
+		ID:         user.ID,
+		Username:   user.Username,
+		Email:      user.Email,
+		Password:   "",
+		Avatar:     user.Avatar,
+		Role:       user.Role,
+		CreatedAt:  user.CreatedAt,
+		UpdatedAt:  nil,
+		CanComment: user.CanComment,
 	}
 
 	return token, sanitizedUser, nil // Возвращаем и токен, и пользователя

@@ -13,6 +13,7 @@ import (
 	"strings"
 
 	"github.com/Bossnicks/music-streaming-service-kurs/pkg/auth"
+	"github.com/Bossnicks/music-streaming-service-kurs/pkg/errorspkg"
 
 	"github.com/Bossnicks/music-streaming-service-kurs/pkg/storage"
 
@@ -585,7 +586,6 @@ func (h *Handler) AddComment(c echo.Context) error {
 	if err != nil {
 		return c.JSON(http.StatusUnauthorized, map[string]string{"error": "Неверный токен"})
 	}
-	var ErrCommentBanned = errors.New("Администратор запретил вам оставлять комментарии")
 
 	var req struct {
 		Text   string `json:"text"`
@@ -598,7 +598,7 @@ func (h *Handler) AddComment(c echo.Context) error {
 
 	commentID, err := h.service.AddComment(trackID, claims.UserID, req.Text, req.Moment)
 	fmt.Println(err)
-	if errors.Is(err, ErrCommentBanned) {
+	if errors.Is(err, errorspkg.ErrCommentBanned) {
 		return c.JSON(http.StatusForbidden, map[string]string{"error": "Администратор запретил вам оставлять комментарии"})
 	}
 	if err != nil {

@@ -2,6 +2,7 @@ package music
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -584,6 +585,7 @@ func (h *Handler) AddComment(c echo.Context) error {
 	if err != nil {
 		return c.JSON(http.StatusUnauthorized, map[string]string{"error": "Неверный токен"})
 	}
+	var ErrCommentBanned = errors.New("Администратор запретил вам оставлять комментарии")
 
 	var req struct {
 		Text   string `json:"text"`
@@ -595,6 +597,10 @@ func (h *Handler) AddComment(c echo.Context) error {
 	}
 
 	commentID, err := h.service.AddComment(trackID, claims.UserID, req.Text, req.Moment)
+	fmt.Println(err)
+	if errors.Is(err, ErrCommentBanned) {
+		return c.JSON(http.StatusForbidden, map[string]string{"error": "Администратор запретил вам оставлять комментарии"})
+	}
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Ошибка сохранения комментария"})
 	}

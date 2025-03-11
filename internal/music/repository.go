@@ -5,6 +5,8 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/Bossnicks/music-streaming-service-kurs/pkg/errorspkg"
+
 	"github.com/lib/pq"
 )
 
@@ -286,7 +288,7 @@ func (r *Repository) AddComment(trackID, userID int, text string, moment int) (i
 
 	// Если пользователю запрещено оставлять комментарии
 	if !canComment {
-		return 0, fmt.Errorf("пользователю запрещено оставлять комментарии")
+		return 0, errorspkg.ErrCommentBanned
 	}
 
 	var id int

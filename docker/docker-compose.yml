@@ -1,0 +1,49 @@
+version: '3.8'
+
+services:
+  music-service:
+    build:
+      context: ..  # Указываем на корневую директорию проекта
+      dockerfile: Dockerfile  # Указываем путь к Dockerfile
+    ports:
+      - "11000:11000"
+    command: /app/music-service  # Указываем полный путь к исполняемому файлу
+    environment:
+      - DB_HOST=10.208.125.115 # Указываем имя контейнера PostgreSQL
+      - DB_PORT=5438
+      - DB_USER=postgres
+      - DB_PASSWORD=1111
+      - DB_NAME=music_app_kurs
+      - MINIO_ENDPOINT=10.208.125.115:9000
+    networks:
+      - app-network  # Подключаем сервис к сети
+
+  user-service:
+    build:
+      context: ..  # Указываем на корневую директорию проекта
+      dockerfile: Dockerfile  # Указываем путь к Dockerfile
+    ports:
+      - "12000:12000"
+    command: /app/user-service  # Указываем полный путь к исполняемому файлу
+    environment:
+      - DB_HOST=10.208.125.115  # Указываем имя контейнера PostgreSQL
+      - DB_PORT=5438
+      - DB_USER=postgres
+      - DB_PASSWORD=1111
+      - DB_NAME=music_app_kurs
+    networks:
+      - app-network  # Подключаем сервис к сети
+  # frontend:
+  #   build:
+  #     context: ../web  # Путь к папке с проектом React
+  #   ports:
+  #     - "5173:5173"  # Прокидываем порт 5173, на котором работает React
+  #   command: npm run dev  # Запуск приложения в режиме разработки
+  #   volumes:
+  #     - ../web:/app  # Монтируем код проекта внутрь контейнера
+  #   networks:
+  #     - app-network  # Подключаем сервис к сети
+      
+networks:
+  app-network:
+    driver: bridge  # Используем мостовую сеть для общения между контейнерами

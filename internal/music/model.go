@@ -66,3 +66,14 @@ type Stats struct {
 	UniqueListeners int     // Уникальные слушатели
 	Engagement      float64 // Вовлеченность (лайки / прослушивания)
 }
+
+type TrackParts struct {
+	StartTime int `json:"start_time"`
+	EndTime   int `json:"end_time"`
+}
+
+type TrackPartsAverage struct {
+	StartTime int `json:"avg_start"`
+	EndTime   int `json:"avg_end"`
+	Count     int `json:"count"`
+}

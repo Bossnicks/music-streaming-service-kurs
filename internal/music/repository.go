@@ -301,10 +301,10 @@ func (r *Repository) AddComment(trackID, userID int, text string, moment int) (i
 	return id, nil
 }
 
-func (r *Repository) AddTrackListen(listenerID int, trackID int, country string) (int, error) {
+func (r *Repository) AddTrackListen(listenerID int, trackID int, country string, device string, duration int, parts []TrackParts) (int, error) {
 	var id int
-	query := `INSERT INTO track_listens (listener_id, track_id, country) 
-	          VALUES ($1, $2, $3) RETURNING id`
+	query := `INSERT INTO track_listens (listener_id, track_id, country, device, total_listen_time) 
+	          VALUES ($1, $2, $3, $4, $5) RETURNING id`
 
 	// Если listenerID == 0, передаём nil
 	var listenerIDPtr sql.NullInt32
@@ -313,12 +313,51 @@ func (r *Repository) AddTrackListen(listenerID int, trackID int, country string)
 	} else {
 		listenerIDPtr = sql.NullInt32{Int32: int32(listenerID), Valid: true}
 	}
+	fmt.Println("cdcdcd" + device)
 
-	err := r.db.QueryRow(query, listenerIDPtr, trackID, country).Scan(&id)
+	err := r.db.QueryRow(query, listenerIDPtr, trackID, country, device, duration).Scan(&id)
 	if err != nil {
 		return 0, err
 	}
+
+	if len(parts) > 0 {
+		for _, part := range parts {
+			_, err := r.db.Exec(
+				`INSERT INTO listens_parts (listen_id, start_time, end_time) VALUES ($1, $2, $3)`,
+				id, part.StartTime, part.EndTime,
+			)
+			if err != nil {
+				return 0, err
+			}
+		}
+	}
 	return id, nil
+}
+
+func (r *Repository) GetTrackPartsByTrackID(trackID int) ([]TrackPartsAverage, error) {
+	var parts []TrackPartsAverage
+	query := `
+		SELECT * FROM get_similar_gaps($1);`
+
+	rows, err := r.db.Query(query, trackID)
+	if err != nil {
+		fmt.Println(err)
+		return nil, err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var part TrackPartsAverage
+		err := rows.Scan(&part.StartTime, &part.EndTime, &part.Count)
+		if err != nil {
+			fmt.Println(err)
+			return nil, err
+		}
+		fmt.Println(part)
+		parts = append(parts, part)
+	}
+
+	return parts, nil
 }
 
 func (r *Repository) GetTrackListens(trackID int) (int, error) {

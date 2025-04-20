@@ -30,6 +30,8 @@ func main() {
 
 	e.POST("/beatstreet/api/users/signup", handler.Register)
 	e.POST("/beatstreet/api/users/login", handler.Login)
+	e.POST("/beatstreet/api/users/forgot-password", handler.RecoverPassword)
+	e.POST("/beatstreet/api/users/verficationtoken", handler.RecoverPassword)
 	e.GET("/beatstreet/api/users/isloggedin", handler.GetUser)
 	e.POST("/beatstreet/api/users/follow/:id", handler.FollowUser)
 	e.DELETE("/beatstreet/api/users/unfollow/:id", handler.UnfollowUser)

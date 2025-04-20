@@ -59,6 +59,56 @@ func (h *Handler) Login(c echo.Context) error {
 	})
 }
 
+func (h *Handler) RecoverPassword(c echo.Context) error {
+	var req RecoverRequest
+	if err := c.Bind(&req); err != nil {
+		return c.JSON(http.StatusBadRequest, map[string]string{"message": "Некорректные данные"})
+	}
+
+	// Генерация токена для сброса пароля
+	token, err := auth.GenerateResetToken(req.Email)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{"message": "Ошибка генерации токена"})
+	}
+
+	// Формируем ссылку для сброса пароля
+	resetLink := fmt.Sprintf("http://localhost:5173/resetpassword?token=%s", token)
+
+	// Отправка письма
+	err = auth.SendResetEmail(req.Email, resetLink)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{"message": "Ошибка отправки письма"})
+	}
+
+	return c.JSON(http.StatusCreated, map[string]string{"message": "Успешно отправлено"})
+}
+
+func (h *Handler) SendVerification(c echo.Context) error {
+	var req RecoverRequest
+	if err := c.Bind(&req); err != nil {
+		return c.JSON(http.StatusBadRequest, map[string]string{"message": "Некорректные данные"})
+	}
+
+	fmt.Println(req.Email)
+
+	// Генерация токена для сброса пароля
+	// token, err := auth.GenerateResetToken(req.Email)
+	// if err != nil {
+	// 	return c.JSON(http.StatusInternalServerError, map[string]string{"message": "Ошибка генерации токена"})
+	// }
+
+	// // Формируем ссылку для сброса пароля
+	// resetLink := fmt.Sprintf("http://localhost:5173/resetpassword?token=%s", token)
+
+	// // Отправка письма
+	// err = auth.SendResetEmail(req.Email, resetLink)
+	// if err != nil {
+	// 	return c.JSON(http.StatusInternalServerError, map[string]string{"message": "Ошибка отправки письма"})
+	// }
+
+	return c.JSON(http.StatusCreated, map[string]string{"message": "Успешно отправлено"})
+}
+
 // Получение информации о пользователе
 func (h *Handler) GetUser(c echo.Context) error {
 

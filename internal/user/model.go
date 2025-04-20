@@ -22,6 +22,10 @@ type RegisterRequest struct {
 	Avatar   []byte `json:"avatar"`
 }
 
+type RecoverRequest struct {
+	Email string `json:"email"`
+}
+
 type LoginRequest struct {
 	Email    string `json:"email"`
 	Password string `json:"password"`

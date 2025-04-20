@@ -593,6 +593,7 @@ func (h *Handler) AddComment(c echo.Context) error {
 	}
 
 	if err := c.Bind(&req); err != nil {
+		fmt.Println("неудачный бинд")
 		return c.JSON(http.StatusBadRequest, map[string]string{"error": "Неверный формат запроса"})
 	}
 
@@ -618,21 +619,29 @@ func (h *Handler) AddTrackListen(c echo.Context) error {
 	}
 
 	var req struct {
-		SongId  int
-		Country string
+		SongId   int          `json:"songId"`
+		Country  string       `json:"country"`
+		Device   string       `json:"device"`
+		Duration int          `json:"duration"`
+		Parts    []TrackParts `json:"parts"`
 	}
 
 	if err := c.Bind(&req); err != nil {
 		return c.JSON(http.StatusBadRequest, map[string]string{"error": "Неверный формат запроса"})
 	}
 
-	fmt.Println(req.Country)
-	fmt.Println(req.SongId)
+	fmt.Println(req.Duration, "dhh")
+
+	fmt.Println(req.Country, "dhh")
+	fmt.Println(req.SongId, "dhh")
+	fmt.Println(req.Parts)
 
 	var listenerID *int
 
 	authHeader := c.Request().Header.Get("Authorization")
-	if authHeader == "" {
+	//fmt.Println(authHeader + "huiiiiiii")
+	if authHeader == "Bearer" {
+		fmt.Println("ADD song ID", trackID)
 		listenerID = nil
 	} else {
 		tokenString := strings.TrimPrefix(authHeader, "Bearer ")
@@ -656,6 +665,7 @@ func (h *Handler) AddTrackListen(c echo.Context) error {
 	// }
 
 	fmt.Println("Country detected:", req.Country)
+	fmt.Println("Device detected:", req.Device)
 
 	listenerIDValue := 0
 	if listenerID != nil {
@@ -666,12 +676,29 @@ func (h *Handler) AddTrackListen(c echo.Context) error {
 		listenerIDValue = 0
 	}
 
-	id, err := h.service.AddTrackListen(listenerIDValue, trackID, req.Country)
+	id, err := h.service.AddTrackListen(listenerIDValue, trackID, req.Country, req.Device, req.Duration, req.Parts)
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to add track listen"})
 	}
 
 	return c.JSON(http.StatusOK, map[string]int{"listen_id": id})
+}
+
+func (h *Handler) GetTrackPartsByTrackID(c echo.Context) error {
+
+	trackID, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "Invalid track ID"})
+	}
+	fmt.Println("song ID", trackID)
+
+	parts, err := h.service.GetTrackPartsByTrackID(trackID)
+
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to fetch comments"})
+	}
+
+	return c.JSON(http.StatusOK, parts)
 }
 
 func (h *Handler) GetTrackListens(c echo.Context) error {

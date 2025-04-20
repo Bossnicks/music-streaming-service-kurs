@@ -56,6 +56,7 @@ func main() {
 	e.PUT("/songs/:id/trackunhide", handler.UnhideTrack)
 	e.POST("/songs/:id/listens", handler.AddTrackListen)
 	e.GET("/songs/:id/listens", handler.GetTrackListens)
+	e.GET("/songs/:id/trackparts", handler.GetTrackPartsByTrackID)
 	e.GET("/artists/top", handler.GetTopUsersByPopularity)
 	e.GET("/artists/:id", handler.GetUserByID)
 	e.GET("/artists/:id/tracks", handler.GetArtistTracks)

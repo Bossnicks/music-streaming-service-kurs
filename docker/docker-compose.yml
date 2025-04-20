@@ -9,12 +9,12 @@ services:
       - "11000:11000"
     command: /app/music-service  # Указываем полный путь к исполняемому файлу
     environment:
-      - DB_HOST=10.208.125.115 # Указываем имя контейнера PostgreSQL
+      - DB_HOST=10.208.127.135 # Указываем имя контейнера PostgreSQL
       - DB_PORT=5438
       - DB_USER=postgres
       - DB_PASSWORD=1111
       - DB_NAME=music_app_kurs
-      - MINIO_ENDPOINT=10.208.125.115:9000
+      - MINIO_ENDPOINT=10.208.127.135:9000
     networks:
       - app-network  # Подключаем сервис к сети
 
@@ -26,7 +26,7 @@ services:
       - "12000:12000"
     command: /app/user-service  # Указываем полный путь к исполняемому файлу
     environment:
-      - DB_HOST=10.208.125.115  # Указываем имя контейнера PostgreSQL
+      - DB_HOST=10.208.127.135  # Указываем имя контейнера PostgreSQL
       - DB_PORT=5438
       - DB_USER=postgres
       - DB_PASSWORD=1111

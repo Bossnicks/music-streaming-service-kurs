@@ -72,8 +72,12 @@ func (s *Service) AddComment(trackID, userID int, text string, moment int) (int,
 	return s.repo.AddComment(trackID, userID, text, moment)
 }
 
-func (s *Service) AddTrackListen(listenerID int, trackID int, country string) (int, error) {
-	return s.repo.AddTrackListen(listenerID, trackID, country)
+func (s *Service) AddTrackListen(listenerID int, trackID int, country string, device string, duration int, parts []TrackParts) (int, error) {
+	return s.repo.AddTrackListen(listenerID, trackID, country, device, duration, parts)
+}
+
+func (s *Service) GetTrackPartsByTrackID(trackID int) ([]TrackPartsAverage, error) {
+	return s.repo.GetTrackPartsByTrackID(trackID)
 }
 
 func (s *Service) GetTrackListens(trackID int) (int, error) {

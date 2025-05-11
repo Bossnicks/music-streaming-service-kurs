@@ -2,9 +2,11 @@ package music
 
 import (
 	"bytes"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"os"
 	"os/exec"
@@ -135,6 +137,24 @@ func (h *Handler) GetImage(c echo.Context) error {
 	return c.Blob(http.StatusOK, http.DetectContentType(buf.Bytes()), buf.Bytes())
 }
 
+func (h *Handler) GetMP3(c echo.Context) error {
+	id := c.Param("id") // Получаем id трека
+
+	// Попытка получить MP3 файл
+	filename := fmt.Sprintf("%s.mp3", id)
+	obj, err := h.storage.GetMP3(filename)
+	if err != nil {
+		return c.String(http.StatusNotFound, "Трек не найден")
+	}
+	defer obj.Close()
+	buf := new(bytes.Buffer)
+	if _, err := io.Copy(buf, obj); err != nil {
+		return c.String(http.StatusInternalServerError, "Ошибка чтения файла")
+	}
+	c.Response().Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=%s.mp3", id))
+	return c.Blob(http.StatusOK, "audio/mpeg", buf.Bytes())
+}
+
 // GetPlaylist отдает m3u8 файл
 func (h *Handler) GetTrackPlaylist(c echo.Context) error {
 	filename := c.Param("id") // Получаем имя файла
@@ -260,11 +280,34 @@ func (h *Handler) UploadTrack(c echo.Context) error {
 	defer dst.Close()
 	io.Copy(dst, src)
 
+	cmd := exec.Command("python3", "scripts/analyze_song.py", tmpPath)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		log.Printf("[analyze error] %v: %s\n", err, string(output))
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Ошибка анализа трека"})
+	}
+
+	var features AudioFeatures
+	if err := json.Unmarshal(output, &features); err != nil {
+		log.Printf("[unmarshal error] %v: %s\n", err, string(output))
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Ошибка получения данных из python скрипта"})
+	}
+
+	if err := h.service.UpdateTrackFeatures(trackID, &features); err != nil {
+		log.Printf("[update DB error] %v\n", err)
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Ошибка загрузки характеристик трека"})
+	}
+
+	err = h.storage.UploadFileMP3(fmt.Sprintf("%d.mp3", trackID), dst.Name())
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Ошибка загрузки mp3"})
+	}
+
 	// Обработка HLS
 	m3u8Path := fmt.Sprintf("/tmp/%d.m3u8", trackID)
 	segmentPath := fmt.Sprintf("/tmp/%d_%%d.ts", trackID)
 	fmt.Println(tmpPath, m3u8Path, segmentPath)
-	cmd := exec.Command("ffmpeg", "-i", tmpPath, "-vn", "-c:a", "aac", "-b:a", "128k", "-f", "hls",
+	cmd = exec.Command("ffmpeg", "-i", tmpPath, "-vn", "-c:a", "aac", "-b:a", "128k", "-f", "hls",
 		"-hls_time", "10", "-hls_list_size", "0", "-hls_segment_filename", segmentPath, m3u8Path)
 
 	// cmd := exec.Command("ffmpeg", "-i", tmpPath, "-c:a", "aac", "-b:a", "128k", "-f", "hls",
@@ -311,6 +354,93 @@ func (h *Handler) UploadTrack(c echo.Context) error {
 	}
 
 	return c.JSON(http.StatusOK, map[string]string{"message": "Трек загружен", "id": fmt.Sprintf("%d", trackID)})
+}
+
+func (h *Handler) GetTopListenedTracks(c echo.Context) error {
+	authHeader := c.Request().Header.Get("Authorization")
+	if authHeader == "" {
+		return c.JSON(http.StatusUnauthorized, map[string]string{"error": "Токен отсутствует"})
+	}
+
+	tokenString := strings.TrimPrefix(authHeader, "Bearer ")
+	claims, err := auth.ParseJWT(tokenString)
+	if err != nil {
+		return c.JSON(http.StatusUnauthorized, map[string]string{"error": "Неверный токен"})
+	}
+
+	tracks, err := h.service.GetTopListenedTracks(claims.UserID)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Ошибка получения треков"})
+	}
+
+	return c.JSON(http.StatusOK, tracks)
+}
+
+func (h *Handler) GetTopListenedUsers(c echo.Context) error {
+	authHeader := c.Request().Header.Get("Authorization")
+	if authHeader == "" {
+		return c.JSON(http.StatusUnauthorized, map[string]string{"error": "Токен отсутствует"})
+	}
+
+	tokenString := strings.TrimPrefix(authHeader, "Bearer ")
+	claims, err := auth.ParseJWT(tokenString)
+	if err != nil {
+		return c.JSON(http.StatusUnauthorized, map[string]string{"error": "Неверный токен"})
+	}
+
+	users, err := h.service.GetTopListenedUsers(claims.UserID)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Ошибка получения треков"})
+	}
+
+	fmt.Println(users)
+
+	return c.JSON(http.StatusOK, users)
+}
+
+func (h *Handler) GetRecentTracks(c echo.Context) error {
+	authHeader := c.Request().Header.Get("Authorization")
+	if authHeader == "" {
+		return c.JSON(http.StatusUnauthorized, map[string]string{"error": "Токен отсутствует"})
+	}
+
+	tokenString := strings.TrimPrefix(authHeader, "Bearer ")
+	claims, err := auth.ParseJWT(tokenString)
+	if err != nil {
+		return c.JSON(http.StatusUnauthorized, map[string]string{"error": "Неверный токен"})
+	}
+
+	tracks, err := h.service.GetRecentTracks(claims.UserID)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Ошибка получения треков"})
+	}
+
+	return c.JSON(http.StatusOK, tracks)
+}
+
+func (h *Handler) GetRecommendationByAI(c echo.Context) error {
+	authHeader := c.Request().Header.Get("Authorization")
+	if authHeader == "" {
+		return c.JSON(http.StatusUnauthorized, map[string]string{"error": "Токен отсутствует"})
+	}
+
+	tokenString := strings.TrimPrefix(authHeader, "Bearer ")
+	_, err := auth.ParseJWT(tokenString)
+	if err != nil {
+		return c.JSON(http.StatusUnauthorized, map[string]string{"error": "Неверный токен"})
+	}
+
+	trackID, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "Некорректный ID трека"})
+	}
+
+	tracks, err := h.service.GetRecommendationByAI(trackID)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Ошибка получения треков"})
+	}
+
+	return c.JSON(http.StatusOK, tracks)
 }
 
 func (h *Handler) AddLike(c echo.Context) error {

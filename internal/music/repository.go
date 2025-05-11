@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"math"
 
 	"github.com/Bossnicks/music-streaming-service-kurs/pkg/errorspkg"
 
@@ -28,11 +29,52 @@ func (r *Repository) AddPlaylist(title, description string, userID int) (int, er
 	return playlistID, nil
 }
 
+// func (r *Repository) GetTrackByID(id int) (*Track, error) {
+// 	var track Track
+// 	query := "SELECT id, author_id, title, description, duration, created_at FROM tracks WHERE id = $1"
+// 	err := r.db.QueryRow(query, id).Scan(&track.ID, &track.Artist, &track.Title, &track.Description, &track.Duration, &track.Created_at)
+// 	fmt.Println()
+// 	if err != nil {
+// 		if errors.Is(err, sql.ErrNoRows) {
+// 			return nil, nil
+// 		}
+// 		return nil, err
+// 	}
+// 	return &track, nil
+// }
+
 func (r *Repository) GetTrackByID(id int) (*Track, error) {
 	var track Track
-	query := "SELECT id, author_id, title, description, duration, created_at FROM tracks WHERE id = $1"
-	err := r.db.QueryRow(query, id).Scan(&track.ID, &track.Artist, &track.Title, &track.Description, &track.Duration, &track.Created_at)
-	fmt.Println()
+	query := `
+		SELECT 
+			t.id, 
+			t.author_id, 
+			t.title, 
+			t.description, 
+			t.duration, 
+			t.created_at, 
+			u.id AS user_id, 
+			u.username, 
+			u.avatar 
+		FROM tracks t
+		JOIN users u ON t.author_id = u.id
+		WHERE t.id = $1`
+
+	// Используем QueryRow, чтобы получить данные и присвоить их в структуру
+	err := r.db.QueryRow(query, id).Scan(
+		&track.ID,
+		&track.Artist,
+		&track.Title,
+		&track.Description,
+		&track.Duration,
+		&track.Created_at,
+		&track.Author.ID,
+		&track.Author.Username,
+		&track.Author.Avatar,
+		//&track.Author.Popularity,
+	)
+
+	// Если произошла ошибка
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, nil
@@ -671,3 +713,299 @@ func (r *Repository) GetGlobalStatistics(days int) (int, int, int, int, error) {
 
 	return listens, likes, listeners, engagement, nil
 }
+
+func round(f float64) float64 {
+	return math.Round(f*1e5) / 1e5
+}
+
+func (r *Repository) UpdateTrackFeatures(trackID int, features *AudioFeatures) error {
+	query := `
+		UPDATE tracks SET 
+			duration_sec = $1, tempo_bpm = $2, chroma_mean = $3, rmse_mean = $4, 
+			spectral_centroid = $5, spectral_bandwidth = $6, rolloff = $7, 
+			zero_crossing_rate = $8
+		WHERE id = $9
+	`
+	_, err := r.db.Exec(query,
+		round(features.DurationSec),
+		round(features.TempoBPM),
+		round(features.ChromaMean),
+		round(features.RMSEMean),
+		round(features.SpectralCentroid),
+		round(features.SpectralBandwidth),
+		round(features.Rolloff),
+		round(features.ZeroCrossingRate),
+		trackID,
+	)
+
+	fmt.Println(features.DurationSec,
+		features.TempoBPM,
+		features.ChromaMean,
+		features.RMSEMean,
+		features.SpectralCentroid,
+		features.SpectralBandwidth,
+		features.Rolloff,
+		features.ZeroCrossingRate)
+	return err
+}
+
+func (r *Repository) GetTopListenedTracks(userID int) ([]Track, error) {
+	timeframes := []string{
+		"7 days",
+		"30 days",
+		"90 days",
+	}
+
+	for _, tf := range timeframes {
+		query := fmt.Sprintf(`
+			SELECT 
+				t.id, t.author_id, t.title, t.description, t.duration, t.is_blocked, t.created_at,
+				COUNT(*) AS listen_count
+			FROM track_listens tl
+			JOIN tracks t ON tl.track_id = t.id
+			WHERE tl.listener_id = $1 AND tl.created_at >= NOW() - INTERVAL '%s'
+			GROUP BY t.id
+			HAVING COUNT(*) > 10
+			ORDER BY listen_count DESC
+		`, tf)
+
+		rows, err := r.db.Query(query, userID)
+		// остальной код без изменений
+
+		if err != nil {
+			return nil, err
+		}
+		defer rows.Close()
+
+		var tracks []Track
+		for rows.Next() {
+			var t Track
+			var listenCount int // можно использовать если хочешь передавать ещё и счётчик
+			err := rows.Scan(
+				&t.ID,
+				&t.Artist,
+				&t.Title,
+				&t.Description,
+				&t.Duration,
+				&t.Is_blocked,
+				&t.Created_at,
+				&listenCount,
+			)
+			if err != nil {
+				fmt.Println(err)
+				return nil, err
+			}
+			tracks = append(tracks, t)
+		}
+
+		if len(tracks) >= 5 {
+			// Возвращаем только 5 треков с наибольшим listen_count
+			return tracks[:5], nil
+		}
+	}
+
+	return []Track{}, nil
+}
+
+func (r *Repository) GetRecommendationByAI(trackID int) ([]Track, error) {
+	query := `
+WITH reference_track AS (
+    SELECT 
+        id, author_id, title, description, duration, is_blocked, created_at,
+        tempo_bpm, chroma_mean, rmse_mean, spectral_centroid, 
+        spectral_bandwidth, rolloff, zero_crossing_rate
+    FROM tracks 
+    WHERE id = $1
+),
+similar_tracks AS (
+    SELECT 
+        t.id, t.author_id, t.title, t.description, t.duration, t.is_blocked, t.created_at,
+        (
+            0.5 * ABS(t.tempo_bpm - r.tempo_bpm) / NULLIF(r.tempo_bpm, 0) +
+            1.0 * ABS(t.chroma_mean - r.chroma_mean) / NULLIF(r.chroma_mean, 0) +
+            0.8 * ABS(t.rmse_mean - r.rmse_mean) / NULLIF(r.rmse_mean, 0) +
+            1.2 * ABS(t.spectral_centroid - r.spectral_centroid) / NULLIF(r.spectral_centroid, 0) +
+            1.0 * ABS(t.spectral_bandwidth - r.spectral_bandwidth) / NULLIF(r.spectral_bandwidth, 0) +
+            1.0 * ABS(t.rolloff - r.rolloff) / NULLIF(r.rolloff, 0) +
+            0.7 * ABS(t.zero_crossing_rate - r.zero_crossing_rate) / NULLIF(r.zero_crossing_rate, 0)
+        ) AS similarity_score
+    FROM tracks t, reference_track r
+    WHERE t.id != r.id AND t.tempo_bpm IS NOT NULL
+),
+reference_with_score AS (
+    SELECT 
+        id, author_id, title, description, duration, is_blocked, created_at,
+        -1.0 AS similarity_score
+    FROM reference_track
+)
+SELECT 
+    id, author_id, title, description, duration, is_blocked, created_at
+FROM (
+    SELECT * FROM reference_with_score
+    UNION ALL
+    SELECT id, author_id, title, description, duration, is_blocked, created_at, similarity_score
+    FROM similar_tracks
+    ORDER BY similarity_score ASC
+    LIMIT 10
+) AS combined
+ORDER BY similarity_score ASC;
+
+
+
+	
+		`
+
+	rows, err := r.db.Query(query, trackID)
+	if err != nil {
+		fmt.Println(err)
+		return nil, err
+	}
+	defer rows.Close()
+
+	var tracks []Track
+	for rows.Next() {
+		var t Track
+		err := rows.Scan(
+			&t.ID,
+			&t.Artist,
+			&t.Title,
+			&t.Description,
+			&t.Duration,
+			&t.Is_blocked,
+			&t.Created_at,
+		)
+		if err != nil {
+			fmt.Println(err)
+			return nil, err
+		}
+		tracks = append(tracks, t)
+	}
+
+	return tracks, nil
+}
+
+func (r *Repository) GetRecentTracks(userID int) ([]Track, error) {
+	query := `
+		SELECT 
+			t.id, t.author_id, t.title, t.description, t.duration, t.is_blocked, t.created_at
+		FROM track_listens tl
+		JOIN tracks t ON tl.track_id = t.id
+		WHERE tl.listener_id = $1
+		ORDER BY tl.created_at DESC
+		LIMIT 10
+	`
+
+	rows, err := r.db.Query(query, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var tracks []Track
+	for rows.Next() {
+		var t Track
+		err := rows.Scan(
+			&t.ID,
+			&t.Artist,
+			&t.Title,
+			&t.Description,
+			&t.Duration,
+			&t.Is_blocked,
+			&t.Created_at,
+		)
+		if err != nil {
+			return nil, err
+		}
+		tracks = append(tracks, t)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return tracks, nil
+}
+
+func (r *Repository) GetTopListenedUsers(userID int) ([]User, error) {
+	// Интервал времени для последних 30 дней
+	timeframe := "30 days"
+
+	// SQL-запрос для получения наиболее прослушиваемых пользователей
+	query := fmt.Sprintf(`
+		SELECT u.id, u.username, COUNT(*) AS listen_count
+		FROM track_listens tl
+		JOIN tracks t ON tl.track_id = t.id
+		JOIN users u ON t.author_id = u.id
+		WHERE tl.listener_id = $1 AND tl.created_at >= NOW() - INTERVAL '%s'
+		GROUP BY u.id
+		ORDER BY listen_count DESC
+		LIMIT 10;
+	`, timeframe)
+
+	rows, err := r.db.Query(query, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var users []User
+	for rows.Next() {
+		var user User
+		var listenCount int
+		err := rows.Scan(&user.ID, &user.Username, &listenCount)
+		if err != nil {
+			return nil, err
+		}
+		users = append(users, user)
+	}
+
+	if len(users) == 0 {
+		return nil, nil // Если нет пользователей, возвращаем пустой срез
+	}
+
+	return users, nil
+}
+
+// `
+// WITH reference_track AS (
+//     SELECT
+//         id, author_id, title, description, duration, is_blocked, created_at,
+//         tempo_bpm, chroma_mean, rmse_mean, spectral_centroid,
+//         spectral_bandwidth, rolloff, zero_crossing_rate
+//     FROM tracks
+//     WHERE id = $1
+// ),
+// similar_tracks AS (
+//     SELECT
+//         t.id, t.author_id, t.title, t.description, t.duration, t.is_blocked, t.created_at,
+//         (
+//             0.5 * ABS(t.tempo_bpm - r.tempo_bpm) / NULLIF(r.tempo_bpm, 0) +
+//             1.0 * ABS(t.chroma_mean - r.chroma_mean) / NULLIF(r.chroma_mean, 0) +
+//             0.8 * ABS(t.rmse_mean - r.rmse_mean) / NULLIF(r.rmse_mean, 0) +
+//             1.2 * ABS(t.spectral_centroid - r.spectral_centroid) / NULLIF(r.spectral_centroid, 0) +
+//             1.0 * ABS(t.spectral_bandwidth - r.spectral_bandwidth) / NULLIF(r.spectral_bandwidth, 0) +
+//             1.0 * ABS(t.rolloff - r.rolloff) / NULLIF(r.rolloff, 0) +
+//             0.7 * ABS(t.zero_crossing_rate - r.zero_crossing_rate) / NULLIF(r.zero_crossing_rate, 0)
+//         ) AS similarity_score
+//     FROM tracks t, reference_track r
+//     WHERE t.id != r.id AND t.tempo_bpm IS NOT NULL
+// ),
+// reference_with_score AS (
+//     SELECT
+//         id, author_id, title, description, duration, is_blocked, created_at,
+//         -1.0 AS similarity_score
+//     FROM reference_track
+// )
+// SELECT
+//     id, author_id, title, description, duration, is_blocked, created_at
+// FROM (
+//     SELECT * FROM reference_with_score
+//     UNION ALL
+//     SELECT id, author_id, title, description, duration, is_blocked, created_at, similarity_score
+//     FROM similar_tracks
+//     ORDER BY similarity_score ASC
+//     LIMIT 10
+// ) AS combined
+// ORDER BY similarity_score ASC;
+
+// 	`

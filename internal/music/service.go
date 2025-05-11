@@ -125,3 +125,23 @@ func (s *Service) GetSongStatistics(trackID int) (*TrackStatistics, error) {
 func (s *Service) GetGlobalStatistics(days int) (int, int, int, int, error) {
 	return s.repo.GetGlobalStatistics(days)
 }
+
+func (s *Service) UpdateTrackFeatures(trackID int, features *AudioFeatures) error {
+	return s.repo.UpdateTrackFeatures(trackID, features)
+}
+
+func (s *Service) GetTopListenedTracks(userID int) ([]Track, error) {
+	return s.repo.GetTopListenedTracks(userID)
+}
+
+func (s *Service) GetRecommendationByAI(trackID int) ([]Track, error) {
+	return s.repo.GetRecommendationByAI(trackID)
+}
+
+func (s *Service) GetRecentTracks(userID int) ([]Track, error) {
+	return s.repo.GetRecentTracks(userID)
+}
+
+func (s *Service) GetTopListenedUsers(userID int) ([]User, error) {
+	return s.repo.GetTopListenedUsers(userID)
+}

@@ -18,6 +18,7 @@ type MinioStorage struct {
 	Bucket          string
 	Track_bucket    string
 	Playlist_bucket string
+	Mp3_bucket      string
 }
 
 // NewMinioStorage инициализация MinIO
@@ -34,6 +35,7 @@ func NewMinioStorage() (*MinioStorage, error) {
 	bucket := os.Getenv("MINIO_BUCKET")
 	track_bucket := os.Getenv("MINIO_TRACK_BUCKET")
 	playlist_bucket := os.Getenv("MINIO_PLAYLIST_BUCKET")
+	mp3_bucket := os.Getenv("MINIO_MP3_BUCKET")
 
 	// Подключение к MinIO
 	client, err := minio.New(endpoint, &minio.Options{
@@ -50,6 +52,7 @@ func NewMinioStorage() (*MinioStorage, error) {
 		Bucket:          bucket,
 		Track_bucket:    track_bucket,
 		Playlist_bucket: playlist_bucket,
+		Mp3_bucket:      mp3_bucket,
 	}, nil
 }
 
@@ -94,6 +97,19 @@ func (s *MinioStorage) UploadFile(objectName, filePath string) error {
 
 	// Загружаем файл в MinIO
 	_, err = s.Client.PutObject(context.Background(), s.Bucket, objectName, file, -1, minio.PutObjectOptions{})
+	return err
+}
+
+func (s *MinioStorage) UploadFileMP3(objectName, filePath string) error {
+	// Открываем файл
+	file, err := os.Open(filePath)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+
+	// Загружаем файл в MinIO
+	_, err = s.Client.PutObject(context.Background(), s.Mp3_bucket, objectName, file, -1, minio.PutObjectOptions{})
 	return err
 }
 
@@ -147,4 +163,20 @@ func (s *MinioStorage) GetImage(bucketType string, fileName string) (io.ReadClos
 
 	log.Printf("Объект %s найден в бакете %s", fileName, bucketType)
 	return obj, nil
+}
+
+func (s *MinioStorage) GetMP3(fileName string) (io.ReadCloser, error) {
+	ctx := context.Background()
+
+	// Проверяем, существует ли объект в бакете
+	_, err := s.Client.StatObject(ctx, s.Mp3_bucket, fileName, minio.StatObjectOptions{})
+	if err != nil {
+		if minio.ToErrorResponse(err).Code == "NoSuchKey" {
+			return nil, fmt.Errorf("file not found")
+		}
+		return nil, err
+	}
+
+	// Получаем объект из бакета
+	return s.Client.GetObject(ctx, s.Mp3_bucket, fileName, minio.GetObjectOptions{})
 }

@@ -77,3 +77,15 @@ type TrackPartsAverage struct {
 	EndTime   int `json:"avg_end"`
 	Count     int `json:"count"`
 }
+
+type AudioFeatures struct {
+	DurationSec       float64 `json:"duration_sec"`
+	TempoBPM          float64 `json:"tempo_bpm"`
+	ChromaMean        float64 `json:"chroma_mean"`
+	RMSEMean          float64 `json:"rmse_mean"`
+	SpectralCentroid  float64 `json:"spectral_centroid"`
+	SpectralBandwidth float64 `json:"spectral_bandwidth"`
+	Rolloff           float64 `json:"rolloff"`
+	ZeroCrossingRate  float64 `json:"zero_crossing_rate"`
+	//MFCC              []float64
+}

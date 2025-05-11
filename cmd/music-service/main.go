@@ -25,8 +25,8 @@ func main() {
 	e := echo.New()
 
 	e.Use(middleware.CORSWithConfig(middleware.CORSConfig{
-		AllowOrigins: []string{"http://localhost:5173", "http://127.0.0.1:5173"}, // Разрешенные источники
-		AllowMethods: []string{echo.GET, echo.POST, echo.PUT, echo.DELETE},       // Разрешенные HTTP-методы
+		AllowOrigins: []string{"http://localhost:5173", "http://127.0.0.1:5173", "http://172.20.10.2:5173"}, // Разрешенные источники
+		AllowMethods: []string{echo.GET, echo.POST, echo.PUT, echo.DELETE},                                  // Разрешенные HTTP-методы
 	}))
 
 	repo := music.NewRepository(db)
@@ -35,6 +35,7 @@ func main() {
 
 	e.GET("/songs/:id/info", handler.GetTrackInfo)
 	e.GET("/songs/:id", handler.GetTrackPlaylist) // Эндпоинт для m3u8
+	e.GET("/songs/:id/download", handler.GetMP3)  // Эндпоинт для mp3
 	e.GET("/images/:id/:bucket", handler.GetImage)
 	e.POST("/beatstreet/api/users/addnewplaylist", handler.AddPlaylist)
 	e.GET("/beatstreet/api/users/allplaylist", handler.GetUserPlaylists)
@@ -64,6 +65,10 @@ func main() {
 	e.GET("/songs/:id/statistics", handler.GetSongStatistics)
 	e.GET("/globalstatistics", handler.GetTrackStatisticsGlobal)
 	e.GET("/beatstreet/api/users/favoritesongs", handler.GetFavorites)
+	e.GET("/playlists/recommendedByAI", handler.GetTopListenedTracks)
+	e.GET("/playlists/recommendationByAI/:id", handler.GetRecommendationByAI)
+	e.GET("/songs/getRecent", handler.GetRecentTracks)
+	e.GET("/artist/topListenedUsers", handler.GetTopListenedUsers)
 	//e.GET("/playlists/addsong", )
 
 	log.Println("Запуск music-service на порту 11000")

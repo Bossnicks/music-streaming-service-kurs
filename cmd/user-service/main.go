@@ -20,8 +20,8 @@ func main() {
 	e := echo.New()
 
 	e.Use(middleware.CORSWithConfig(middleware.CORSConfig{
-		AllowOrigins: []string{"http://localhost:5173", "http://127.0.0.1:5173"}, // Разрешенные источники
-		AllowMethods: []string{echo.GET, echo.POST, echo.PUT, echo.DELETE},       // Разрешенные HTTP-методы
+		AllowOrigins: []string{"http://localhost:5173", "http://127.0.0.1:5173", "http://172.20.10.2:5173"}, // Разрешенные источники
+		AllowMethods: []string{echo.GET, echo.POST, echo.PUT, echo.DELETE},                                  // Разрешенные HTTP-методы
 	}))
 
 	repo := user.NewRepository(db)

@@ -16,6 +16,7 @@ import (
 
 	"github.com/Bossnicks/music-streaming-service-kurs/pkg/auth"
 	"github.com/Bossnicks/music-streaming-service-kurs/pkg/errorspkg"
+	"github.com/Bossnicks/music-streaming-service-kurs/pkg/yandex"
 
 	"github.com/Bossnicks/music-streaming-service-kurs/pkg/storage"
 
@@ -29,6 +30,21 @@ type Handler struct {
 
 func NewHandler(service *Service, storage *storage.MinioStorage) *Handler {
 	return &Handler{service: service, storage: storage}
+}
+
+func (h *Handler) GetNeuroData(c echo.Context) error {
+	mood := c.Param("mood")
+
+	data, err := yandex.GetYandexMusicStreamURL(mood)
+
+	fmt.Println("dasdvas", data)
+	fmt.Println("yandex get", data)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Ошибка при получении данных от Яндекса"})
+	}
+
+	// Отправляем данные обратно клиенту
+	return c.JSON(http.StatusOK, data)
 }
 
 func (h *Handler) AddPlaylist(c echo.Context) error {

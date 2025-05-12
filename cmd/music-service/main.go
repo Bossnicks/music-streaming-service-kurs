@@ -69,6 +69,7 @@ func main() {
 	e.GET("/playlists/recommendationByAI/:id", handler.GetRecommendationByAI)
 	e.GET("/songs/getRecent", handler.GetRecentTracks)
 	e.GET("/artist/topListenedUsers", handler.GetTopListenedUsers)
+	e.GET("/neuromusic/:mood", handler.GetNeuroData)
 	//e.GET("/playlists/addsong", )
 
 	log.Println("Запуск music-service на порту 11000")

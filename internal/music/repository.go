@@ -29,6 +29,38 @@ func (r *Repository) AddPlaylist(title, description string, userID int) (int, er
 	return playlistID, nil
 }
 
+func (r *Repository) UpdatePlaylist(playlistID int, title, description string, userID int) error {
+	query := `UPDATE playlists SET title = $1, description = $2 WHERE id = $3 AND author_id = $4`
+	_, err := r.db.Exec(query, title, description, playlistID, userID)
+	return err
+}
+
+func (r *Repository) DeletePlaylist(playlistID int, userID int) error {
+	query := `DELETE FROM playlists WHERE id = $1 AND author_id = $2`
+	_, err := r.db.Exec(query, playlistID, userID)
+	return err
+}
+
+func (r *Repository) UpdateTrack(id int, title, description, genre string, userID int) error {
+	query := `
+        UPDATE tracks 
+        SET title = $1, 
+            description = $2, 
+            genre = $3, 
+            updated_at = NOW() 
+        WHERE id = $4 
+        AND author_id = $5
+    `
+	_, err := r.db.Exec(query, title, description, genre, id, userID)
+	return err
+}
+
+func (r *Repository) DeleteTrack(id, userID int) error {
+	query := "DELETE FROM tracks WHERE id = $1 AND author_id = $2"
+	_, err := r.db.Exec(query, id, userID)
+	return err
+}
+
 // func (r *Repository) GetTrackByID(id int) (*Track, error) {
 // 	var track Track
 // 	query := "SELECT id, author_id, title, description, duration, created_at FROM tracks WHERE id = $1"

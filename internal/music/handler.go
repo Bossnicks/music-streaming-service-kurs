@@ -101,6 +101,69 @@ func (h *Handler) AddPlaylist(c echo.Context) error {
 	})
 }
 
+// handler.go
+func (h *Handler) UpdatePlaylist(c echo.Context) error {
+	// Авторизация
+	authHeader := c.Request().Header.Get("Authorization")
+	if authHeader == "" {
+		return c.JSON(http.StatusUnauthorized, map[string]string{"error": "Токен отсутствует"})
+	}
+
+	tokenString := strings.TrimPrefix(authHeader, "Bearer ")
+	claims, err := auth.ParseJWT(tokenString)
+	if err != nil {
+		return c.JSON(http.StatusUnauthorized, map[string]string{"error": "Неверный токен"})
+	}
+
+	// Получение ID плейлиста
+	playlistID, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "Некорректный ID плейлиста"})
+	}
+
+	// Получение данных
+	title := c.FormValue("title")
+	description := c.FormValue("description")
+
+	fmt.Println("sdsdsdsd", title, description)
+
+	// Вызов сервиса
+	err = h.service.UpdatePlaylist(playlistID, title, description, claims.UserID)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": err.Error()})
+	}
+
+	return c.JSON(http.StatusOK, map[string]string{"message": "Плейлист обновлен"})
+}
+
+func (h *Handler) DeletePlaylist(c echo.Context) error {
+	// Авторизация
+	authHeader := c.Request().Header.Get("Authorization")
+	if authHeader == "" {
+		return c.JSON(http.StatusUnauthorized, map[string]string{"error": "Токен отсутствует"})
+	}
+
+	tokenString := strings.TrimPrefix(authHeader, "Bearer ")
+	claims, err := auth.ParseJWT(tokenString)
+	if err != nil {
+		return c.JSON(http.StatusUnauthorized, map[string]string{"error": "Неверный токен"})
+	}
+
+	// Получение ID плейлиста
+	playlistID, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "Некорректный ID плейлиста"})
+	}
+
+	// Вызов сервиса
+	err = h.service.DeletePlaylist(playlistID, claims.UserID)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": err.Error()})
+	}
+
+	return c.JSON(http.StatusOK, map[string]string{"message": "Плейлист удален"})
+}
+
 func (h *Handler) GetTrackInfo(c echo.Context) error {
 	id, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
@@ -370,6 +433,77 @@ func (h *Handler) UploadTrack(c echo.Context) error {
 	}
 
 	return c.JSON(http.StatusOK, map[string]string{"message": "Трек загружен", "id": fmt.Sprintf("%d", trackID)})
+}
+
+// handler.go
+func (h *Handler) UpdateTrack(c echo.Context) error {
+	// Проверка авторизации
+	// claims, err := getClaims(c)
+	// if err != nil {
+	//     return err
+	// }
+
+	authHeader := c.Request().Header.Get("Authorization")
+	if authHeader == "" {
+		return c.JSON(http.StatusUnauthorized, map[string]string{"error": "Токен отсутствует"})
+	}
+
+	tokenString := strings.TrimPrefix(authHeader, "Bearer ")
+	claims, err := auth.ParseJWT(tokenString)
+	if err != nil {
+		return c.JSON(http.StatusUnauthorized, map[string]string{"error": "Неверный токен"})
+	}
+
+	id, _ := strconv.Atoi(c.Param("id"))
+	// var req struct {
+	// 	Title       string `json:"title"`
+	// 	Description string `json:"description"`
+	// 	Genre       string `json:"genre"`
+	// }
+
+	// if err := c.Bind(&req); err != nil {
+	// 	return c.JSON(400, map[string]string{"error": "Invalid data"})
+	// }
+
+	title := c.FormValue("title")
+	description := c.FormValue("description")
+	genre := c.FormValue("genre")
+
+	fmt.Println("upd song", id, title, description, genre, claims.UserID)
+
+	err = h.service.UpdateTrack(id, title, description, genre, claims.UserID)
+	if err != nil {
+		return c.JSON(500, map[string]string{"error": err.Error()})
+	}
+
+	return c.JSON(200, map[string]string{"message": "Track updated"})
+}
+
+func (h *Handler) DeleteTrack(c echo.Context) error {
+	// claims, err := getClaims(c)
+	// if err != nil {
+	//     return err
+	// }
+
+	authHeader := c.Request().Header.Get("Authorization")
+	if authHeader == "" {
+		return c.JSON(http.StatusUnauthorized, map[string]string{"error": "Токен отсутствует"})
+	}
+
+	tokenString := strings.TrimPrefix(authHeader, "Bearer ")
+	claims, err := auth.ParseJWT(tokenString)
+	if err != nil {
+		return c.JSON(http.StatusUnauthorized, map[string]string{"error": "Неверный токен"})
+	}
+
+	id, _ := strconv.Atoi(c.Param("id"))
+	fmt.Println("del song", id, claims.UserID)
+	err = h.service.DeleteTrack(id, claims.UserID)
+	if err != nil {
+		return c.JSON(500, map[string]string{"error": err.Error()})
+	}
+
+	return c.JSON(200, map[string]string{"message": "Track deleted"})
 }
 
 func (h *Handler) GetTopListenedTracks(c echo.Context) error {

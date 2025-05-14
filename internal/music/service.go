@@ -12,6 +12,14 @@ func (s *Service) AddPlaylist(title string, description string, userID int) (int
 	return s.repo.AddPlaylist(title, description, userID)
 }
 
+func (s *Service) UpdatePlaylist(playlistID int, title, description string, userID int) error {
+	return s.repo.UpdatePlaylist(playlistID, title, description, userID)
+}
+
+func (s *Service) DeletePlaylist(playlistID int, userID int) error {
+	return s.repo.DeletePlaylist(playlistID, userID)
+}
+
 func (s *Service) GetTrack(id int) (*Track, error) {
 	return s.repo.GetTrackByID(id)
 }
@@ -148,4 +156,12 @@ func (s *Service) GetTopListenedUsers(userID int) ([]User, error) {
 
 func (s *Service) GetMyWave(activity string, character string, mood string, userId int, excludeTrackIDs []int) ([]Track, error) {
 	return s.repo.GetMyWaveTracks(activity, character, mood, userId, excludeTrackIDs)
+}
+
+func (s *Service) UpdateTrack(id int, title, description, genre string, userID int) error {
+	return s.repo.UpdateTrack(id, title, description, genre, userID)
+}
+
+func (s *Service) DeleteTrack(id, userID int) error {
+	return s.repo.DeleteTrack(id, userID)
 }

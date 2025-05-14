@@ -38,9 +38,13 @@ func main() {
 	e.GET("/songs/:id/download", handler.GetMP3)  // Эндпоинт для mp3
 	e.GET("/images/:id/:bucket", handler.GetImage)
 	e.POST("/beatstreet/api/users/addnewplaylist", handler.AddPlaylist)
+	e.PUT("/beatstreet/api/users/updateplaylist/:id", handler.UpdatePlaylist)
+	e.DELETE("/beatstreet/api/users/deleteplaylist/:id", handler.DeletePlaylist)
 	e.GET("/beatstreet/api/users/allplaylist", handler.GetUserPlaylists)
 	e.POST("/songs/:playlistId/playlist/addsong/:trackID", handler.AddSongToPlaylist)
 	e.POST("/songs/upload", handler.UploadTrack)
+	e.PUT("/songs/:id", handler.UpdateTrack)
+	e.DELETE("/songs/:id", handler.DeleteTrack)
 	e.POST("/songs/:id/likes", handler.AddLike)
 	e.DELETE("/songs/:id/likes", handler.RemoveLike)
 	e.GET("/songs/:id/likes", handler.GetLikeCount)

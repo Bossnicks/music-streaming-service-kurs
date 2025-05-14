@@ -3,16 +3,26 @@ package music
 import "time"
 
 type Track struct {
-	ID          int       `json:"id"`
-	Artist      string    `json:"author_id"`
-	Title       string    `json:"title"`
-	Avatar      string    `json:"avatar"`
-	Description string    `json:"description"`
-	Duration    int       `json:"duration"`
-	Created_at  time.Time `json:"created_at"`
-	Is_blocked  bool      `json:"is_blocked"`
-	Updated_at  time.Time `json:"updated_at"`
-	Author      User      `json:"author"`
+	ID                   int       `json:"id"`
+	Artist               string    `json:"author_id"`
+	Title                string    `json:"title"`
+	Avatar               string    `json:"avatar"`
+	Description          string    `json:"description"`
+	Duration             int       `json:"duration"`
+	Created_at           time.Time `json:"created_at"`
+	Is_blocked           bool      `json:"is_blocked"`
+	Updated_at           time.Time `json:"updated_at"`
+	Author               User      `json:"author"`
+	Genre                string    `json:"genre"`
+	RecommendationReason string    `json:"recommendation_reason"`
+}
+
+type GetMyWaveRequest struct {
+	Activity        string `json:"activity"`
+	Character       string `json:"character"`
+	Mood            string `json:"mood"`
+	UserID          int    `json:"user_id"`
+	ExcludeTrackIDs []int  `json:"exclude_track_ids"`
 }
 
 type Comment struct {

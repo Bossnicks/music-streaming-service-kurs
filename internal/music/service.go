@@ -145,3 +145,7 @@ func (s *Service) GetRecentTracks(userID int) ([]Track, error) {
 func (s *Service) GetTopListenedUsers(userID int) ([]User, error) {
 	return s.repo.GetTopListenedUsers(userID)
 }
+
+func (s *Service) GetMyWave(activity string, character string, mood string, userId int, excludeTrackIDs []int) ([]Track, error) {
+	return s.repo.GetMyWaveTracks(activity, character, mood, userId, excludeTrackIDs)
+}

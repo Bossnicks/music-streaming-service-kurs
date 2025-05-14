@@ -414,6 +414,52 @@ func (h *Handler) GetTopListenedUsers(c echo.Context) error {
 	return c.JSON(http.StatusOK, users)
 }
 
+func (h *Handler) GetMyWave(c echo.Context) error {
+
+	authHeader := c.Request().Header.Get("Authorization")
+	if authHeader == "" {
+		return c.JSON(http.StatusUnauthorized, map[string]string{"error": "Токен отсутствует"})
+	}
+
+	tokenString := strings.TrimPrefix(authHeader, "Bearer ")
+	claims, err := auth.ParseJWT(tokenString)
+	if err != nil {
+		return c.JSON(http.StatusUnauthorized, map[string]string{"error": "Неверный токен"})
+	}
+
+	req := GetMyWaveRequest{
+		Activity:  c.QueryParam("activity"),
+		Character: c.QueryParam("character"),
+		Mood:      c.QueryParam("mood"),
+		UserID:    claims.UserID,
+	}
+
+	excludeIDs := c.QueryParam("exclude_track_ids")
+	if excludeIDs != "" {
+		parts := strings.Split(excludeIDs, ",")
+		for _, idStr := range parts {
+			idStr = strings.TrimSpace(idStr) // убрать пробелы
+			if idStr == "" {
+				continue
+			}
+			id, err := strconv.Atoi(idStr)
+			if err != nil {
+				return c.JSON(http.StatusBadRequest, echo.Map{
+					"error": "invalid track ID in exclude_track_ids: " + idStr,
+				})
+			}
+			req.ExcludeTrackIDs = append(req.ExcludeTrackIDs, id)
+		}
+	}
+
+	tracks, err := h.service.GetMyWave(req.Activity, req.Character, req.Mood, req.UserID, req.ExcludeTrackIDs)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": err.Error()})
+	}
+
+	return c.JSON(http.StatusOK, tracks)
+}
+
 func (h *Handler) GetRecentTracks(c echo.Context) error {
 	authHeader := c.Request().Header.Get("Authorization")
 	if authHeader == "" {

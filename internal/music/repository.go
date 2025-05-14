@@ -1009,3 +1009,93 @@ func (r *Repository) GetTopListenedUsers(userID int) ([]User, error) {
 // ORDER BY similarity_score ASC;
 
 // 	`
+
+func (r *Repository) GetMyWaveTracks(activity, character, mood string, userID int, excludeTrackIDs []int) ([]Track, error) {
+
+	if excludeTrackIDs == nil {
+		excludeTrackIDs = []int{}
+	}
+	// Сначала получаем ID треков из функции getMyWave
+	rows, err := r.db.Query(
+		`SELECT id, title, author_id, genre, recommendation_reason 
+		FROM getMyWave($1, $2, $3, $4, $5)`,
+		activity, character, mood, userID, pq.Array(excludeTrackIDs),
+	)
+
+	fmt.Println(activity, character, mood, userID, pq.Array(excludeTrackIDs))
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var trackIDs []int
+	// var trackData = make(map[int]struct {
+	// 	title    string
+	// 	authorID int
+	// 	genre    string
+	// 	reason   string
+	// })
+
+	for rows.Next() {
+		var id, authorID int
+		var title, genre, reason string
+		if err := rows.Scan(&id, &title, &authorID, &genre, &reason); err != nil {
+			return nil, err
+		}
+		trackIDs = append(trackIDs, id)
+		// trackData[id] = struct {
+		// 	title    string
+		// 	authorID int
+		// 	genre    string
+		// 	reason   string
+		// }{title: title, authorID: authorID, genre: genre, reason: reason}
+	}
+
+	fmt.Println(trackIDs)
+
+	if len(trackIDs) == 0 {
+		return []Track{}, nil
+	}
+
+	// Теперь получаем полную информацию о треках
+	query := `
+		SELECT 
+			t.id, t.title, t.description, t.duration, 
+			t.created_at, t.is_blocked, t.updated_at, t.genre,
+			u.id, u.username
+		FROM tracks t
+		JOIN users u ON t.author_id = u.id
+		WHERE t.id = ANY($1)
+	`
+
+	rows, err = r.db.Query(query, pq.Array(trackIDs))
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var tracks []Track
+	for rows.Next() {
+		var track Track
+		//var author User
+		if err := rows.Scan(
+			&track.ID, &track.Title, &track.Description, &track.Duration,
+			&track.Created_at, &track.Is_blocked, &track.Updated_at, &track.Genre,
+			&track.Author.ID, &track.Author.Username,
+		); err != nil {
+			return nil, err
+		}
+
+		// Добавляем данные из первой выборки
+		// if data, ok := trackData[track.ID]; ok {
+		// 	track.Title = data.title
+		// 	track.Genre = data.genre
+		// 	track.RecommendationReason = data.reason
+		// 	track.Author = author
+		// }
+
+		tracks = append(tracks, track)
+	}
+
+	return tracks, nil
+}

@@ -75,6 +75,12 @@ func main() {
 	e.GET("/artist/topListenedUsers", handler.GetTopListenedUsers)
 	e.GET("/neuromusic/:mood", handler.GetNeuroData)
 	e.GET("/getMyWave", handler.GetMyWave)
+	e.POST("/albums", handler.CreateAlbum)
+	e.GET("/albums", handler.GetAlbums)
+	e.GET("/albums/:id", handler.GetAlbum)
+	e.DELETE("/albums/:id", handler.DeleteAlbum)
+	// e.PATCH("/albums/:id/hide", handler.ToggleAlbumVisibility)
+	e.GET("/tracks/available-for-album", handler.GetAvailableTracks)
 	//e.GET("/playlists/addsong", )
 
 	log.Println("Запуск music-service на порту 11000")

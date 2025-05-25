@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"time"
 
 	"github.com/Bossnicks/music-streaming-service-kurs/pkg/errorspkg"
 
@@ -1130,4 +1131,197 @@ func (r *Repository) GetMyWaveTracks(activity, character, mood string, userID in
 	}
 
 	return tracks, nil
+}
+
+func (r *Repository) CreateAlbum(title, description string, releaseDate time.Time, userID int, is_Announced bool) (int, error) {
+	var id int
+	query := `
+        INSERT INTO albums 
+            (title, description, author_id, release_date, is_announced) 
+        VALUES ($1, $2, $3, $4, $5) 
+        RETURNING id
+    `
+	err := r.db.QueryRow(query, title, description, userID, releaseDate, is_Announced).Scan(&id)
+	fmt.Println(err)
+	return id, err
+}
+
+func (r *Repository) AddTracksToAlbum(albumID int, trackIDs []int) error {
+	query := `INSERT INTO tracks_albums (album_id, track_id) VALUES ($1, $2)`
+	for _, trackID := range trackIDs {
+		_, err := r.db.Exec(query, albumID, trackID)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (r *Repository) CheckTracksAvailability(trackIDs []int, userID int) (bool, error) {
+	query := `
+        SELECT COUNT(*) 
+        FROM tracks 
+        WHERE id = ANY($1) 
+        AND author_id = $2 
+        AND id NOT IN (
+            SELECT track_id FROM tracks_albums
+            JOIN albums ON albums.id = tracks_albums.album_id
+            WHERE albums.author_id = $2
+        )
+    `
+	var count int
+	err := r.db.QueryRow(query, pq.Array(trackIDs), userID).Scan(&count)
+	return count == len(trackIDs), err
+}
+
+func (r *Repository) DeleteAlbum(albumID, userID int) error {
+	query := `
+        DELETE FROM albums
+        WHERE id = $1
+        AND author_id = $2
+    `
+	_, err := r.db.Exec(query, albumID, userID)
+	return err
+}
+
+// func (r *Repository) ToggleAlbumVisibility(albumID, userID int) error {
+//     query := `
+//         UPDATE albums
+//         SET is_hidden = NOT is_hidden
+//         WHERE id = $1
+//         AND author_id = $2
+//     `
+//     res, err := r.db.Exec(query, albumID, userID)
+//     return checkAffected(res, err)
+// }
+
+func (r *Repository) GetAvailableTracks(userID int) ([]*Track, error) {
+	query := `
+        SELECT t.id, t.title, t.duration 
+        FROM tracks t
+        LEFT JOIN tracks_albums ta ON t.id = ta.track_id
+        LEFT JOIN albums a ON ta.album_id = a.id AND a.author_id = $1
+        WHERE t.author_id = $1 AND a.id IS NULL
+    `
+	rows, err := r.db.Query(query, userID)
+	if err != nil {
+		fmt.Println(err)
+		return nil, err
+	}
+	defer rows.Close()
+
+	var tracks []*Track
+	for rows.Next() {
+		var track Track
+		if err := rows.Scan(
+			&track.ID,
+			&track.Title,
+			&track.Duration,
+		); err != nil {
+			fmt.Println(err)
+			return nil, err
+		}
+		tracks = append(tracks, &track)
+	}
+	return tracks, nil
+}
+
+func (r *Repository) GetAlbumsByAuthor(userID int) ([]*Album, error) {
+	query := `
+        SELECT id, title, description, release_date, is_announced
+        FROM albums 
+        WHERE author_id = $1 AND is_announced = true
+        ORDER BY release_date DESC
+    `
+
+	rows, err := r.db.Query(query, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var albums []*Album
+	for rows.Next() {
+		var album Album
+		if err := rows.Scan(
+			&album.ID,
+			&album.Title,
+			&album.Description,
+			&album.Release_Date,
+			&album.Is_Announced,
+		); err != nil {
+			return nil, err
+		}
+		albums = append(albums, &album)
+	}
+	return albums, nil
+}
+
+func (r *Repository) GetAlbumWithTracks(albumID int) (*Album, error) {
+	// Получение базовой информации об альбоме
+	albumQuery := `
+        SELECT a.id, a.title, a.description, a.release_date, a.is_announced,
+               u.id, u.username
+        FROM albums a
+        JOIN users u ON a.author_id = u.id
+        WHERE a.id = $1 AND (
+    a.release_date < NOW()
+    OR (
+      a.release_date > NOW()
+      AND a.is_announced = true
+    )
+  );
+    `
+
+	var album Album
+	err := r.db.QueryRow(albumQuery, albumID).Scan(
+		&album.ID,
+		&album.Title,
+		&album.Description,
+		&album.Release_Date,
+		&album.Is_Announced,
+		&album.Author.ID,
+		&album.Author.Username,
+	)
+
+	if err != nil {
+		fmt.Println(err)
+		return nil, err
+	}
+
+	// Получение треков альбома
+	tracksQuery := `
+        SELECT t.id, t.title, t.duration,
+       u.id, u.username
+FROM tracks t
+JOIN tracks_albums ta ON t.id = ta.track_id
+JOIN users u ON t.author_id = u.id
+JOIN albums a ON ta.album_id = a.id
+WHERE ta.album_id = $1
+  AND a.release_date < NOW();
+    `
+
+	rows, err := r.db.Query(tracksQuery, albumID)
+	if err != nil {
+		fmt.Println(err)
+		return nil, err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var track Track
+		if err := rows.Scan(
+			&track.ID,
+			&track.Title,
+			&track.Duration,
+			&track.Author.ID,
+			&track.Author.Username,
+		); err != nil {
+			fmt.Println(err)
+			return nil, err
+		}
+		album.Tracks = append(album.Tracks, track)
+	}
+
+	return &album, nil
 }

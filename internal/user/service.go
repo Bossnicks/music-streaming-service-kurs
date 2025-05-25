@@ -123,6 +123,14 @@ func (s *Service) GetUserFeed(userID int) ([]FeedItem, error) {
 	return s.repo.GetUserFeed(userID)
 }
 
+func (s *Service) UpdateUserResetToken(token, email string) error {
+	return s.repo.UpdateUserResetToken(token, email)
+}
+
+func (s *Service) IsValidResetToken(token, email string) (bool, error) {
+	return s.repo.IsValidResetToken(token, email)
+}
+
 func (s *Service) Search(query string, entityTypes []string, genre string, sortField string, order string, isAdmin bool) (map[string]interface{}, error) {
 	result := make(map[string]interface{})
 
@@ -159,4 +167,13 @@ func (s *Service) Search(query string, entityTypes []string, genre string, sortF
 	}
 
 	return result, nil
+}
+
+func (s *Service) ResetPassword(email, newPassword string) error {
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(newPassword), bcrypt.DefaultCost)
+	if err != nil {
+		return err
+	}
+
+	return s.repo.UpdateUserPassword(email, string(hashedPassword))
 }

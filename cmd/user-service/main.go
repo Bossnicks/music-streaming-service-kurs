@@ -43,6 +43,7 @@ func main() {
 	e.GET("/users/:id/isCommentBlocked", handler.IsCommentAbilityBlocked)
 	e.GET("/beatstreet/api/music/homepage", handler.GetUserFeed)
 	e.GET("/search", handler.SearchHandler)
+	e.POST("/beatstreet/api/users/reset-password", handler.ResetPassword)
 
 	log.Println("Запуск user-service на порту 12000")
 	if err := e.Start(":12000"); err != nil {

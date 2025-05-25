@@ -1,5 +1,10 @@
 package music
 
+import (
+	"errors"
+	"time"
+)
+
 type Service struct {
 	repo *Repository
 }
@@ -164,4 +169,46 @@ func (s *Service) UpdateTrack(id int, title, description, genre string, userID i
 
 func (s *Service) DeleteTrack(id, userID int) error {
 	return s.repo.DeleteTrack(id, userID)
+}
+
+func (s *Service) CreateAlbum(title, description string, releaseDate time.Time, userID int, trackIDs []int, is_Announced bool) (int, error) {
+	if len(trackIDs) == 0 {
+		return 0, errors.New("album must contain at least one track")
+	}
+
+	valid, err := s.repo.CheckTracksAvailability(trackIDs, userID)
+	if !valid || err != nil {
+		return 0, errors.New("invalid tracks selected")
+	}
+
+	albumID, err := s.repo.CreateAlbum(title, description, releaseDate, userID, is_Announced)
+	if err != nil {
+		return 0, err
+	}
+
+	if err := s.repo.AddTracksToAlbum(albumID, trackIDs); err != nil {
+		return 0, err
+	}
+
+	return albumID, nil
+}
+
+func (s *Service) DeleteAlbum(albumID, userID int) error {
+	return s.repo.DeleteAlbum(albumID, userID)
+}
+
+// func (s *Service) ToggleAlbumVisibility(albumID, userID int) error {
+//     return s.repo.ToggleAlbumVisibility(albumID, userID)
+// }
+
+func (s *Service) GetAvailableTracks(userID int) ([]*Track, error) {
+	return s.repo.GetAvailableTracks(userID)
+}
+
+func (s *Service) GetUserAlbums(userID int) ([]*Album, error) {
+	return s.repo.GetAlbumsByAuthor(userID)
+}
+
+func (s *Service) GetAlbumDetails(albumID int) (*Album, error) {
+	return s.repo.GetAlbumWithTracks(albumID)
 }

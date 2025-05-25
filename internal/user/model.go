@@ -76,3 +76,9 @@ type UserAvatar struct {
 	Username string `json:"username"`
 	Avatar   string `json:"avatar"`
 }
+
+type ResetPasswordRequest struct {
+	Token           string `json:"token"`
+	NewPassword     string `json:"newPassword"`
+	ConfirmPassword string `json:"confirmPassword"`
+}

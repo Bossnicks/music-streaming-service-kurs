@@ -99,3 +99,17 @@ type AudioFeatures struct {
 	ZeroCrossingRate  float64 `json:"zero_crossing_rate"`
 	//MFCC              []float64
 }
+
+type Album struct {
+	ID           int       `json:"id"`
+	Title        string    `json:"title"`
+	Description  string    `json:"description"`
+	Avatar       string    `json:"avatar"`
+	CreatedAt    time.Time `json:"created_at"`
+	UpdatedAt    time.Time `json:"updated_at"`
+	Author       User      `json:"author"`
+	Tracks       []Track   `json:"tracks"`
+	Is_Hidden    bool      `json:"is_hidden"`
+	Release_Date time.Time `json:"release_date"`
+	Is_Announced bool      `json:"is_announced"`
+}

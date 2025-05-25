@@ -80,6 +80,14 @@ func (h *Handler) RecoverPassword(c echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, map[string]string{"message": "Ошибка отправки письма"})
 	}
 
+	fmt.Println(req.Email, token)
+
+	err = h.service.UpdateUserResetToken(req.Email, token)
+
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{"message": "Не удалось установить токен"})
+	}
+
 	return c.JSON(http.StatusCreated, map[string]string{"message": "Успешно отправлено"})
 }
 
@@ -446,4 +454,46 @@ func (h *Handler) SearchHandler(c echo.Context) error {
 	}
 
 	return c.JSON(http.StatusOK, result)
+}
+
+func (h *Handler) ResetPassword(c echo.Context) error {
+
+	fmt.Println("1")
+	var req ResetPasswordRequest
+	if err := c.Bind(&req); err != nil {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "Invalid request"})
+	}
+	fmt.Println("1")
+
+	if req.NewPassword != req.ConfirmPassword {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "Passwords don't match"})
+	}
+	fmt.Println("1")
+
+	claims, _ := auth.ParseResetToken(req.Token)
+	// if err != nil {
+	// 	return c.JSON(http.StatusUnauthorized, map[string]string{"error": "Invalid or expired token"})
+	// }
+	fmt.Println("1")
+
+	// if err := h.service.IsValidResetToken(claims.Email, req.Token); err != nil && {
+	// 	return c.JSON(http.StatusUnauthorized, map[string]string{"error": "Invalid token"})
+	// }
+	fmt.Println("1")
+
+	if isValid, err := h.service.IsValidResetToken("nikon.chigoya@mail.ru", req.Token); err != nil {
+		fmt.Println("token good")
+		fmt.Println("1")
+
+	} else if !isValid {
+		return c.JSON(http.StatusUnauthorized, map[string]string{"error": "Invalid token"})
+
+	}
+	fmt.Println("1")
+
+	if err := h.service.ResetPassword(claims.Email, req.NewPassword); err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": err.Error()})
+	}
+
+	return c.JSON(http.StatusOK, map[string]string{"success": "Password updated successfully"})
 }

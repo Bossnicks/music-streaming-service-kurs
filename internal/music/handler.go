@@ -13,6 +13,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/Bossnicks/music-streaming-service-kurs/pkg/auth"
 	"github.com/Bossnicks/music-streaming-service-kurs/pkg/errorspkg"
@@ -1283,4 +1284,153 @@ func (h *Handler) GetTrackStatisticsGlobal(c echo.Context) error {
 	}
 
 	return c.JSON(http.StatusOK, stats)
+}
+
+func (h *Handler) CreateAlbum(c echo.Context) error {
+	authHeader := c.Request().Header.Get("Authorization")
+	if authHeader == "" {
+		return c.JSON(http.StatusUnauthorized, map[string]string{"error": "Токен отсутствует"})
+	}
+
+	tokenString := strings.TrimPrefix(authHeader, "Bearer ")
+	claims, err := auth.ParseJWT(tokenString)
+	if err != nil {
+		return c.JSON(http.StatusUnauthorized, map[string]string{"error": "Неверный токен"})
+	}
+
+	if claims.Role != "artist" {
+		return c.JSON(http.StatusForbidden, map[string]string{"error": "Неверная роль"})
+	}
+
+	var req struct {
+		Title        string    `json:"title"`
+		Description  string    `json:"description"`
+		ReleaseDate  time.Time `json:"release_date"`
+		TrackIDs     []int     `json:"track_ids"`
+		Is_Announced bool      `json:"is_announced"`
+	}
+
+	if err := c.Bind(&req); err != nil {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "Не получилось сбиндить"})
+	}
+
+	albumID, err := h.service.CreateAlbum(
+		req.Title,
+		req.Description,
+		req.ReleaseDate,
+		claims.UserID,
+		req.TrackIDs,
+		req.Is_Announced,
+	)
+
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Не получилось создать альбом"})
+	}
+
+	return c.JSON(http.StatusCreated, map[string]interface{}{
+		"id": albumID,
+	})
+}
+
+// func (h *Handler) GetAlbum(c echo.Context) error {
+//     albumID, _ := strconv.Atoi(c.Param("id"))
+//     album, err := h.service.GetAlbum(albumID)
+//     // ...
+// }
+
+func (h *Handler) DeleteAlbum(c echo.Context) error {
+	albumID, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "Некорректный ID альбома"})
+	}
+	authHeader := c.Request().Header.Get("Authorization")
+	if authHeader == "" {
+		return c.JSON(http.StatusUnauthorized, map[string]string{"error": "Токен отсутствует"})
+	}
+
+	tokenString := strings.TrimPrefix(authHeader, "Bearer ")
+	claims, err := auth.ParseJWT(tokenString)
+	if err != nil {
+		return c.JSON(http.StatusUnauthorized, map[string]string{"error": "Неверный токен"})
+	}
+
+	if claims.Role != "artist" {
+		return c.JSON(http.StatusForbidden, map[string]string{"error": "Неверная роль"})
+	}
+
+	if err := h.service.DeleteAlbum(albumID, claims.UserID); err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": err.Error()})
+	}
+	return c.JSON(http.StatusOK, map[string]string{"message": "Альбом удален"})
+}
+
+// func (h *Handler) ToggleAlbumVisibility(c echo.Context) error {
+//     albumID, _ := strconv.Atoi(c.Param("id"))
+//     claims := getClaims(c)
+
+//     if err := h.service.ToggleAlbumVisibility(albumID, claims.UserID); err != nil {
+//         return c.JSON(http.StatusInternalServerError, errorResponse(err.Error()))
+//     }
+
+//     return c.JSON(http.StatusOK, successResponse("Visibility updated"))
+// }
+
+// func (h *Handler) GetAvailableTracks(c echo.Context) error {
+//     claims := getClaims(c)
+//     tracks, err := h.service.GetAvailableTracks(claims.UserID)
+//     // ...
+// }
+
+func (h *Handler) GetAvailableTracks(c echo.Context) error {
+	authHeader := c.Request().Header.Get("Authorization")
+	if authHeader == "" {
+		return c.JSON(http.StatusUnauthorized, map[string]string{"error": "Токен отсутствует"})
+	}
+
+	tokenString := strings.TrimPrefix(authHeader, "Bearer ")
+	claims, err := auth.ParseJWT(tokenString)
+	if err != nil {
+		return c.JSON(http.StatusUnauthorized, map[string]string{"error": "Неверный токен"})
+	}
+
+	tracks, err := h.service.GetAvailableTracks(claims.UserID)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": err.Error()})
+	}
+
+	return c.JSON(http.StatusOK, tracks)
+}
+
+func (h *Handler) GetAlbums(c echo.Context) error {
+	authHeader := c.Request().Header.Get("Authorization")
+	if authHeader == "" {
+		return c.JSON(http.StatusUnauthorized, map[string]string{"error": "Токен отсутствует"})
+	}
+
+	tokenString := strings.TrimPrefix(authHeader, "Bearer ")
+	claims, err := auth.ParseJWT(tokenString)
+	if err != nil {
+		return c.JSON(http.StatusUnauthorized, map[string]string{"error": "Неверный токен"})
+	}
+
+	albums, err := h.service.GetUserAlbums(claims.UserID)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": err.Error()})
+	}
+
+	return c.JSON(http.StatusOK, albums)
+}
+
+func (h *Handler) GetAlbum(c echo.Context) error {
+	albumID, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "Некорректный ID альбома"})
+	}
+
+	album, err := h.service.GetAlbumDetails(albumID)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": err.Error()})
+	}
+
+	return c.JSON(http.StatusOK, album)
 }

@@ -352,3 +352,25 @@ func (r *Repository) SearchUsers(query string, sortField string, order string) (
 
 	return users, nil
 }
+
+func (r *Repository) UpdateUserPassword(email, hashedPassword string) error {
+	query := `UPDATE users SET password = $1 WHERE email = $2`
+	_, err := r.db.Exec(query, hashedPassword, email)
+	return err
+}
+
+func (r *Repository) UpdateUserResetToken(email, token string) error {
+	query := "UPDATE users SET reset_token = $1 WHERE email = $2"
+	_, err := r.db.Exec(query, token, email)
+	return err
+}
+
+func (r *Repository) IsValidResetToken(email, token string) (bool, error) {
+	query := "SELECT reset_token FROM users WHERE email = $1"
+	var storedToken string
+	err := r.db.QueryRow(query, email).Scan(&storedToken)
+	if err != nil {
+		return false, err
+	}
+	return storedToken == token, nil
+}

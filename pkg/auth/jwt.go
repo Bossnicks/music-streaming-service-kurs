@@ -72,11 +72,13 @@ func ParseResetToken(tokenString string) (*ResetClaims, error) {
 	token, err := jwt.ParseWithClaims(tokenString, &ResetClaims{}, func(token *jwt.Token) (interface{}, error) {
 		return jwtSecretReset, nil
 	})
+
 	if err != nil {
 		return nil, err
 	}
 
 	claims, ok := token.Claims.(*ResetClaims)
+	//fmt.Println(claims)
 	if !ok || !token.Valid {
 		return nil, errors.New("невалидный токен")
 	}

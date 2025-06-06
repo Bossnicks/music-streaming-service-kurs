@@ -1364,6 +1364,32 @@ func (h *Handler) DeleteAlbum(c echo.Context) error {
 	return c.JSON(http.StatusOK, map[string]string{"message": "Альбом удален"})
 }
 
+// func (h *Handler) HideAlbum(c echo.Context) error {
+// 	albumID, err := strconv.Atoi(c.Param("id"))
+// 	if err != nil {
+// 		return c.JSON(http.StatusBadRequest, map[string]string{"error": "Некорректный ID альбома"})
+// 	}
+// 	authHeader := c.Request().Header.Get("Authorization")
+// 	if authHeader == "" {
+// 		return c.JSON(http.StatusUnauthorized, map[string]string{"error": "Токен отсутствует"})
+// 	}
+
+// 	tokenString := strings.TrimPrefix(authHeader, "Bearer ")
+// 	claims, err := auth.ParseJWT(tokenString)
+// 	if err != nil {
+// 		return c.JSON(http.StatusUnauthorized, map[string]string{"error": "Неверный токен"})
+// 	}
+
+// 	if claims.Role != "artist" {
+// 		return c.JSON(http.StatusForbidden, map[string]string{"error": "Неверная роль"})
+// 	}
+
+// 	if err := h.service.DeleteAlbum(albumID, claims.UserID); err != nil {
+// 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": err.Error()})
+// 	}
+// 	return c.JSON(http.StatusOK, map[string]string{"message": "Альбом удален"})
+// }
+
 // func (h *Handler) ToggleAlbumVisibility(c echo.Context) error {
 //     albumID, _ := strconv.Atoi(c.Param("id"))
 //     claims := getClaims(c)

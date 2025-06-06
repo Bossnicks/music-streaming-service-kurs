@@ -2,6 +2,7 @@ package user
 
 import (
 	"errors"
+	"fmt"
 
 	"github.com/Bossnicks/music-streaming-service-kurs/pkg/auth"
 	"golang.org/x/crypto/bcrypt"
@@ -32,6 +33,7 @@ func (s *Service) RegisterUser(user *User) error {
 
 func (s *Service) Authenticate(email, password string) (string, *User, error) {
 	user, err := s.repo.GetUserByEmail(email)
+	fmt.Println(user)
 	if err != nil {
 		return "", nil, errors.New("неверные учетные данные")
 	}
@@ -176,4 +178,16 @@ func (s *Service) ResetPassword(email, newPassword string) error {
 	}
 
 	return s.repo.UpdateUserPassword(email, string(hashedPassword))
+}
+
+func (s *Service) HideAlbum(userID, albumID int) error {
+	return s.repo.HideAlbum(userID, albumID)
+}
+
+func (s *Service) UnhideAlbum(userID, albumID int) error {
+	return s.repo.UnhideAlbum(userID, albumID)
+}
+
+func (s *Service) IsAlbumHidden(userID, albumID int) (bool, error) {
+	return s.repo.IsAlbumHidden(userID, albumID)
 }

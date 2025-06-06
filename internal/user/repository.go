@@ -23,8 +23,8 @@ func (r *Repository) CreateUser(user *User) error {
 
 func (r *Repository) GetUserByEmail(email string) (*User, error) {
 	var user User
-	query := "SELECT id, username, email, password, avatar, role, created_at, can_comment FROM users WHERE email = $1"
-	err := r.db.QueryRow(query, email).Scan(&user.ID, &user.Username, &user.Email, &user.Password, &user.Avatar, &user.Role, &user.CreatedAt, &user.CanComment)
+	query := "SELECT id, username, email, password, avatar, role, created_at, can_comment, is_verified FROM users WHERE email = $1"
+	err := r.db.QueryRow(query, email).Scan(&user.ID, &user.Username, &user.Email, &user.Password, &user.Avatar, &user.Role, &user.CreatedAt, &user.CanComment, &user.Is_verified)
 	if err == sql.ErrNoRows {
 		return nil, errors.New("пользователь не найден")
 	}
@@ -34,8 +34,8 @@ func (r *Repository) GetUserByEmail(email string) (*User, error) {
 func (r *Repository) GetUserByID(userID int) (*User, error) {
 	fmt.Println(userID)
 	var user User
-	query := "SELECT id, username, email, password, avatar, role, created_at, token, can_comment FROM users WHERE id = $1"
-	err := r.db.QueryRow(query, userID).Scan(&user.ID, &user.Username, &user.Email, &user.Password, &user.Avatar, &user.Role, &user.CreatedAt, &user.Token, &user.CanComment)
+	query := "SELECT id, username, email, password, avatar, role, created_at, token, can_comment, is_verified FROM users WHERE id = $1"
+	err := r.db.QueryRow(query, userID).Scan(&user.ID, &user.Username, &user.Email, &user.Password, &user.Avatar, &user.Role, &user.CreatedAt, &user.Token, &user.CanComment, &user.Is_verified)
 	fmt.Println(err)
 	if err == sql.ErrNoRows {
 		return nil, errors.New("пользователь не найден")
@@ -145,6 +145,26 @@ func (r *Repository) IsCommentAbilityBlocked(userID int) (bool, error) {
 		return false, err
 	}
 	return !canComment, nil
+}
+
+func (r *Repository) HideAlbum(userID, albumID int) error {
+	_, err := r.db.Exec("UPDATE albums SET is_hidden = TRUE WHERE id = $1 AND author_id = $2", albumID, userID)
+	return err
+}
+
+func (r *Repository) UnhideAlbum(userID, albumID int) error {
+	_, err := r.db.Exec("UPDATE albums SET is_hidden = FALSE WHERE id = $1 AND author_id = $2", albumID, userID)
+	return err
+}
+
+func (r *Repository) IsAlbumHidden(userID, albumID int) (bool, error) {
+	var isHidden bool
+	query := `SELECT is_hidden FROM albums WHERE id = $1`
+	err := r.db.QueryRow(query, albumID).Scan(&isHidden)
+	if err != nil {
+		return false, err
+	}
+	return isHidden, nil
 }
 
 func (r *Repository) GetUserFeed(userID int) ([]FeedItem, error) {
@@ -320,7 +340,8 @@ func (r *Repository) SearchUsers(query string, sortField string, order string) (
 			id, 
 			username, 
 			created_at, 
-			updated_at
+			updated_at,
+			role
 		FROM users
 		WHERE username ILIKE $1
 		ORDER BY %s %s`
@@ -343,6 +364,7 @@ func (r *Repository) SearchUsers(query string, sortField string, order string) (
 			&user.Username,
 			&user.CreatedAt,
 			&user.UpdatedAt,
+			&user.Role,
 		)
 		if err != nil {
 			return nil, err
@@ -354,7 +376,7 @@ func (r *Repository) SearchUsers(query string, sortField string, order string) (
 }
 
 func (r *Repository) UpdateUserPassword(email, hashedPassword string) error {
-	query := `UPDATE users SET password = $1 WHERE email = $2`
+	query := `UPDATE users SET password = $1, is_verified = true WHERE email = $2`
 	_, err := r.db.Exec(query, hashedPassword, email)
 	return err
 }
@@ -365,7 +387,7 @@ func (r *Repository) UpdateUserResetToken(email, token string) error {
 	return err
 }
 
-func (r *Repository) IsValidResetToken(email, token string) (bool, error) {
+func (r *Repository) IsValidResetToken(token, email string) (bool, error) {
 	query := "SELECT reset_token FROM users WHERE email = $1"
 	var storedToken string
 	err := r.db.QueryRow(query, email).Scan(&storedToken)

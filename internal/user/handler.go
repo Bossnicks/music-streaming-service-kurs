@@ -468,9 +468,10 @@ func (h *Handler) ResetPassword(c echo.Context) error {
 	if req.NewPassword != req.ConfirmPassword {
 		return c.JSON(http.StatusBadRequest, map[string]string{"error": "Passwords don't match"})
 	}
-	fmt.Println("1")
+	fmt.Println(req.Token, req.NewPassword, req.ConfirmPassword)
 
 	claims, _ := auth.ParseResetToken(req.Token)
+	fmt.Println(claims.Email)
 	// if err != nil {
 	// 	return c.JSON(http.StatusUnauthorized, map[string]string{"error": "Invalid or expired token"})
 	// }
@@ -481,19 +482,135 @@ func (h *Handler) ResetPassword(c echo.Context) error {
 	// }
 	fmt.Println("1")
 
-	if isValid, err := h.service.IsValidResetToken("nikon.chigoya@mail.ru", req.Token); err != nil {
+	isValid, err := h.service.IsValidResetToken(req.Token, claims.Email)
+
+	fmt.Println(isValid)
+
+	if err != nil {
 		fmt.Println("token good")
 		fmt.Println("1")
 
 	} else if !isValid {
 		return c.JSON(http.StatusUnauthorized, map[string]string{"error": "Invalid token"})
-
 	}
 	fmt.Println("1")
 
-	if err := h.service.ResetPassword(claims.Email, req.NewPassword); err != nil {
+	err = h.service.ResetPassword(claims.Email, req.NewPassword)
+	if err != nil {
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": err.Error()})
 	}
+	fmt.Println("dasdasdas")
 
 	return c.JSON(http.StatusOK, map[string]string{"success": "Password updated successfully"})
+}
+
+func (h *Handler) HideAlbum(c echo.Context) error {
+	authHeader := c.Request().Header.Get("Authorization")
+	if authHeader == "" {
+		return c.JSON(http.StatusUnauthorized, map[string]string{"error": "Токен отсутствует"})
+	}
+
+	tokenString := strings.TrimPrefix(authHeader, "Bearer ")
+	claims, err := auth.ParseJWT(tokenString)
+	if err != nil {
+		return c.JSON(http.StatusUnauthorized, map[string]string{"error": "Неверный токен"})
+	}
+
+	// if claims.Role == "user" {
+	// 	return c.JSON(http.StatusUnauthorized, map[string]string{"error": "Недостаточно прав"})
+	// }
+
+	fmt.Println(claims.Role)
+
+	albumID, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "invalid user ID"})
+	}
+
+	// user, err := h.service.GetUser()
+
+	// if err != nil {
+	// 	return c.JSON(http.StatusBadRequest, map[string]string{"error": "invalid user ID"})
+	// }
+
+	// fmt.Println(user.Role)
+
+	// if user.Role == "admin" {
+	// 	return c.JSON(http.StatusBadRequest, map[string]string{"error": "Недостаточно прав"})
+	// }
+
+	err = h.service.HideAlbum(claims.UserID, albumID)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "failed to hide album"})
+	}
+
+	return c.JSON(http.StatusOK, map[string]string{"message": "album hidden"})
+}
+
+func (h *Handler) UnhideAlbum(c echo.Context) error {
+	authHeader := c.Request().Header.Get("Authorization")
+	if authHeader == "" {
+		return c.JSON(http.StatusUnauthorized, map[string]string{"error": "Токен отсутствует"})
+	}
+
+	tokenString := strings.TrimPrefix(authHeader, "Bearer ")
+	claims, err := auth.ParseJWT(tokenString)
+	if err != nil {
+		return c.JSON(http.StatusUnauthorized, map[string]string{"error": "Неверный токен"})
+	}
+
+	// if claims.Role == "user" {
+	// 	return c.JSON(http.StatusUnauthorized, map[string]string{"error": "Недостаточно прав"})
+	// }
+
+	fmt.Println(claims.Role)
+
+	albumID, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "invalid user ID"})
+	}
+
+	// user, err := h.service.GetUser()
+
+	// if err != nil {
+	// 	return c.JSON(http.StatusBadRequest, map[string]string{"error": "invalid user ID"})
+	// }
+
+	// fmt.Println(user.Role)
+
+	// if user.Role == "admin" {
+	// 	return c.JSON(http.StatusBadRequest, map[string]string{"error": "Недостаточно прав"})
+	// }
+
+	err = h.service.UnhideAlbum(claims.UserID, albumID)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "failed to unhide album"})
+	}
+
+	return c.JSON(http.StatusOK, map[string]string{"message": "album unhidden"})
+}
+
+func (h *Handler) IsAlbumHidden(c echo.Context) error {
+	authHeader := c.Request().Header.Get("Authorization")
+	if authHeader == "" {
+		return c.JSON(http.StatusUnauthorized, map[string]string{"error": "Токен отсутствует"})
+	}
+
+	tokenString := strings.TrimPrefix(authHeader, "Bearer ")
+	claims, err := auth.ParseJWT(tokenString)
+	if err != nil {
+		return c.JSON(http.StatusUnauthorized, map[string]string{"error": "Неверный токен"})
+	}
+
+	albumID, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "Invalid user ID"})
+	}
+
+	albumHidden, err := h.service.IsAlbumHidden(claims.UserID, albumID)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Internal server error"})
+	}
+
+	return c.JSON(http.StatusOK, map[string]bool{"commentBlocked": albumHidden})
 }

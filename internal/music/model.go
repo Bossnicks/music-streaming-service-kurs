@@ -113,3 +113,28 @@ type Album struct {
 	Release_Date time.Time `json:"release_date"`
 	Is_Announced bool      `json:"is_announced"`
 }
+
+type RetentionPoint struct {
+	Time    int     `json:"time"`
+	Percent float64 `json:"percent"`
+}
+
+type SegmentIntensity struct {
+	Segment int `json:"segment"`
+	Value   int `json:"value"`
+}
+
+type TimeOfDay struct {
+	Period  string  `json:"period"`
+	Percent float64 `json:"percent"`
+}
+
+type CountryData struct {
+	Country   string `json:"country"`
+	Listeners int    `json:"listeners"`
+}
+
+type GeographyData struct {
+	MapData      []CountryData `json:"map_data"`
+	TopCountries []CountryData `json:"top_countries"`
+}

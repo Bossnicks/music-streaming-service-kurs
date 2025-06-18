@@ -1460,3 +1460,80 @@ func (h *Handler) GetAlbum(c echo.Context) error {
 
 	return c.JSON(http.StatusOK, album)
 }
+
+
+func (h *Handler) GetAudienceRetention(c echo.Context) error {
+    trackID, err := strconv.Atoi(c.Param("id"))
+    if err != nil {
+        return c.JSON(http.StatusBadRequest, map[string]string{"error": "Invalid track ID"})
+    }
+    
+    period := c.QueryParam("period")
+    if period == "" {
+        period = "6m" // default
+    }
+    
+    data, err := h.service.GetAudienceRetention(trackID, period)
+    if err != nil {
+        return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to get audience retention: " + err.Error()})
+    }
+    
+    return c.JSON(http.StatusOK, data)
+}
+
+func (h *Handler) GetPlayIntensity(c echo.Context) error {
+    trackID, err := strconv.Atoi(c.Param("id"))
+    if err != nil {
+        return c.JSON(http.StatusBadRequest, map[string]string{"error": "Invalid track ID"})
+    }
+    
+    period := c.QueryParam("period")
+    if period == "" {
+        period = "6m"
+    }
+    
+    data, err := h.service.GetPlayIntensity(trackID, period)
+    if err != nil {
+        return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to get play intensity: " + err.Error()})
+    }
+    
+    return c.JSON(http.StatusOK, data)
+}
+
+func (h *Handler) GetTimeOfDay(c echo.Context) error {
+    trackID, err := strconv.Atoi(c.Param("id"))
+    if err != nil {
+        return c.JSON(http.StatusBadRequest, map[string]string{"error": "Invalid track ID"})
+    }
+    
+    period := c.QueryParam("period")
+    if period == "" {
+        period = "6m"
+    }
+    
+    data, err := h.service.GetTimeOfDay(trackID, period)
+    if err != nil {
+        return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to get time of day data: " + err.Error()})
+    }
+    
+    return c.JSON(http.StatusOK, data)
+}
+
+func (h *Handler) GetGeography(c echo.Context) error {
+    trackID, err := strconv.Atoi(c.Param("id"))
+    if err != nil {
+        return c.JSON(http.StatusBadRequest, map[string]string{"error": "Invalid track ID"})
+    }
+    
+    period := c.QueryParam("period")
+    if period == "" {
+        period = "6m"
+    }
+    
+    data, err := h.service.GetGeography(trackID, period)
+    if err != nil {
+        return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to get geography data: " + err.Error()})
+    }
+    
+    return c.JSON(http.StatusOK, data)
+}

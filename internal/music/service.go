@@ -212,3 +212,19 @@ func (s *Service) GetUserAlbums(userID int) ([]*Album, error) {
 func (s *Service) GetAlbumDetails(albumID int) (*Album, error) {
 	return s.repo.GetAlbumWithTracks(albumID)
 }
+
+func (s *Service) GetAudienceRetention(trackID int, period string) ([]RetentionPoint, error) {
+	return s.repo.GetAudienceRetention(trackID, period)
+}
+
+func (s *Service) GetPlayIntensity(trackID int, period string) ([]SegmentIntensity, error) {
+	return s.repo.GetPlayIntensity(trackID, period)
+}
+
+func (s *Service) GetTimeOfDay(trackID int, period string) ([]TimeOfDay, error) {
+	return s.repo.GetTimeOfDay(trackID, period)
+}
+
+func (s *Service) GetGeography(trackID int, period string) (*GeographyData, error) {
+	return s.repo.GetGeography(trackID, period)
+}

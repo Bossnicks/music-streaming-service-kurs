@@ -5,6 +5,8 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/Bossnicks/music-streaming-service-kurs/pkg/errorspkg"
@@ -577,6 +579,7 @@ func (r *Repository) GetPlaylistByID(playlistID int, isAdmin bool) (*Playlist, e
 
 	rows, err := r.db.Query(query, playlistID)
 	if err != nil {
+		fmt.Println(err)
 		return nil, err
 	}
 	defer rows.Close()
@@ -1324,4 +1327,260 @@ WHERE ta.album_id = $1
 	}
 
 	return &album, nil
+}
+
+func (r *Repository) GetAudienceRetention(trackID int, period string) ([]RetentionPoint, error) {
+	points := make([]RetentionPoint, 0)
+
+	months, err := strconv.Atoi(strings.TrimSuffix(period, "m"))
+	if err != nil {
+		return nil, err
+	}
+
+	query := `
+        WITH duration AS (
+    SELECT duration_sec FROM tracks WHERE id = $1
+),
+first_listens AS (
+    SELECT DISTINCT ON (listener_id)
+        listener_id,
+        total_listen_time
+    FROM track_listens
+    WHERE track_id = $1
+      AND created_at >= NOW() - INTERVAL '1 month' * $2
+    ORDER BY listener_id, created_at
+),
+buckets AS (
+    SELECT generate_series(0, 100, 5) AS bucket
+),
+normalized AS (
+    SELECT 
+        listener_id,
+        GREATEST(LEAST(FLOOR(100.0 * total_listen_time / duration_sec / 5) * 5, 100), 0) AS bucket
+    FROM first_listens, duration
+),
+bucket_counts AS (
+    SELECT 
+        b.bucket,
+        COUNT(n.listener_id) AS user_count
+    FROM buckets b
+    LEFT JOIN normalized n ON n.bucket >= b.bucket -- кумулятивный подсчет (Retention)
+    GROUP BY b.bucket
+    ORDER BY b.bucket
+),
+total_users AS (
+    SELECT COUNT(*) AS total FROM normalized
+)
+SELECT 
+    bc.bucket AS time_percent,
+    ROUND(100.0 * bc.user_count / tu.total, 2) AS percent_users
+FROM bucket_counts bc, total_users tu
+ORDER BY bc.bucket;
+
+
+    `
+
+	rows, err := r.db.Query(query, trackID, months)
+	if err != nil {
+		fmt.Println(err)
+		return nil, err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var p RetentionPoint
+		if err := rows.Scan(&p.Time, &p.Percent); err != nil {
+			return nil, err
+		}
+		points = append(points, p)
+	}
+
+	return points, nil
+}
+
+func (r *Repository) GetPlayIntensity(trackID int, period string) ([]SegmentIntensity, error) {
+	intensities := make([]SegmentIntensity, 0)
+
+	months, err := strconv.Atoi(strings.TrimSuffix(period, "m"))
+	if err != nil {
+		return nil, err
+	}
+
+	query := `
+WITH duration_info AS (
+  SELECT duration_sec FROM tracks WHERE id = $1
+),
+segments AS (
+  SELECT 
+    generate_series(0, (SELECT (duration_sec / 10)::int FROM duration_info) - 1) AS segment
+),
+segment_bounds AS (
+  SELECT 
+    segment,
+    segment * 10 AS start_sec,
+    (segment + 1) * 10 AS end_sec
+  FROM segments
+),
+segment_jump_counts AS (
+  SELECT 
+    sb.segment,
+    COUNT(*) AS jump_count
+  FROM segment_bounds sb
+  JOIN track_listens tl 
+    ON tl.track_id = $1 AND tl.created_at >= NOW() - INTERVAL '1 month' * $2
+  JOIN listens_parts lp 
+    ON lp.listen_id = tl.id AND lp.end_time >= sb.start_sec AND lp.end_time < sb.end_sec
+  GROUP BY sb.segment
+)
+SELECT 
+  s.segment,
+  COALESCE(sjc.jump_count, 0)::int AS value
+FROM segments s
+LEFT JOIN segment_jump_counts sjc ON sjc.segment = s.segment
+ORDER BY s.segment;
+
+
+
+    `
+
+	rows, err := r.db.Query(query, trackID, months)
+	if err != nil {
+		fmt.Println(err)
+		return nil, err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var seg SegmentIntensity
+		if err := rows.Scan(&seg.Segment, &seg.Value); err != nil {
+			return nil, err
+		}
+		intensities = append(intensities, seg)
+	}
+
+	return intensities, nil
+}
+
+func (r *Repository) GetTimeOfDay(trackID int, period string) ([]TimeOfDay, error) {
+	timeOfDay := make([]TimeOfDay, 0)
+
+	months, err := strconv.Atoi(strings.TrimSuffix(period, "m"))
+	if err != nil {
+		return nil, err
+	}
+
+	query := `
+        SELECT 
+            time_period,
+            (COUNT(*) * 100.0 / total.total_count)::float4 AS percent
+        FROM (
+            SELECT 
+                CASE 
+                    WHEN EXTRACT(HOUR FROM lp.created_at) BETWEEN 6 AND 10 THEN 'morning'
+                    WHEN EXTRACT(HOUR FROM lp.created_at) BETWEEN 11 AND 17 THEN 'afternoon'
+                    WHEN EXTRACT(HOUR FROM lp.created_at) BETWEEN 17 AND 23 THEN 'evening'
+                    ELSE 'night'
+                END AS time_period
+            FROM likes lp
+            JOIN tracks_playlists tp ON tp.track_id = $1
+            WHERE lp.track_id = $1 AND lp.created_at >= NOW() - INTERVAL '1 month' * $2
+        ) AS periods
+        CROSS JOIN (
+            SELECT COUNT(*) AS total_count 
+            FROM likes 
+            WHERE track_id = $1 AND created_at >= NOW() - INTERVAL '1 month' * $2
+        ) AS total
+        GROUP BY time_period, total.total_count
+    `
+
+	rows, err := r.db.Query(query, trackID, months)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var tod TimeOfDay
+		if err := rows.Scan(&tod.Period, &tod.Percent); err != nil {
+			return nil, err
+		}
+		timeOfDay = append(timeOfDay, tod)
+	}
+
+	// Ensure all periods are present
+	periods := []string{"morning", "afternoon", "evening", "night"}
+	resultMap := make(map[string]float64)
+	for _, p := range timeOfDay {
+		resultMap[p.Period] = p.Percent
+	}
+
+	final := make([]TimeOfDay, 0, len(periods))
+	for _, p := range periods {
+		percent, exists := resultMap[p]
+		if !exists {
+			percent = 0
+		}
+		final = append(final, TimeOfDay{Period: p, Percent: percent})
+	}
+
+	return final, nil
+}
+
+func (r *Repository) GetGeography(trackID int, period string) (*GeographyData, error) {
+	data := &GeographyData{
+		MapData:      make([]CountryData, 0),
+		TopCountries: make([]CountryData, 0),
+	}
+
+	months, err := strconv.Atoi(strings.TrimSuffix(period, "m"))
+	if err != nil {
+		return nil, err
+	}
+
+	// Топ 10 стран по количеству уникальных слушателей из track_listens
+	topQuery := `
+        SELECT country, COUNT(DISTINCT listener_id) AS listeners
+        FROM track_listens
+        WHERE track_id = $1 AND created_at >= NOW() - INTERVAL '1 month' * $2
+        GROUP BY country
+        ORDER BY listeners DESC
+        LIMIT 10
+    `
+
+	rows, err := r.db.Query(topQuery, trackID, months)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var c CountryData
+		if err := rows.Scan(&c.Country, &c.Listeners); err != nil {
+			return nil, err
+		}
+		data.TopCountries = append(data.TopCountries, c)
+	}
+
+	// Все страны (для карты)
+	mapQuery := `
+        SELECT country, COUNT(DISTINCT listener_id) AS listeners
+        FROM track_listens
+        WHERE track_id = $1 AND created_at >= NOW() - INTERVAL '1 month' * $2
+        GROUP BY country
+    `
+	rows, err = r.db.Query(mapQuery, trackID, months)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var c CountryData
+		if err := rows.Scan(&c.Country, &c.Listeners); err != nil {
+			return nil, err
+		}
+		data.MapData = append(data.MapData, c)
+	}
+
+	return data, nil
 }

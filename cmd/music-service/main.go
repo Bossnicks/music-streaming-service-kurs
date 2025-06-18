@@ -82,6 +82,10 @@ func main() {
 	// e.PATCH("/albums/:id/hide", handler.ToggleAlbumVisibility)
 	e.GET("/tracks/available-for-album", handler.GetAvailableTracks)
 	//e.GET("/playlists/addsong", )
+	e.GET("/songs/:id/retention", handler.GetAudienceRetention)
+    e.GET("/songs/:id/intensity", handler.GetPlayIntensity)
+    e.GET("/songs/:id/time-of-day", handler.GetTimeOfDay)
+    e.GET("/songs/:id/geography", handler.GetGeography)
 
 	log.Println("Запуск music-service на порту 11000")
 	if err := e.Start(":11000"); err != nil {
